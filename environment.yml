@@ -1,0 +1,12 @@
+name: neuro-ingest
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - pyarrow
+  - scipy
+  - pydantic
+  - rich
+  - pytest
