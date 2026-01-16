@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.env
+.venv
+conda/
+env/
+*.lock
+
+# Data (NEVER COMMIT)
+data/
+raw/
+normalized/
+*.parquet
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.egg-info/
