@@ -17,12 +17,13 @@ class TDTIngestor(BaseIngestor):
         duration_ms: Optional[float] = None
         n_points: Optional[int] = None
         level_db: Optional[float] = None
+        freq_hz: float = 0.0
         in_variables = False
         in_waveform = False
         wf: List[float] = []
 
         def flush_record():
-            nonlocal rows, record_no, duration_ms, n_points, level_db, wf
+            nonlocal rows, record_no, duration_ms, n_points, level_db, freq_hz, wf
             if record_no is None or duration_ms is None or n_points is None or level_db is None:
                 return
             if len(wf) != n_points:
@@ -32,7 +33,7 @@ class TDTIngestor(BaseIngestor):
             for i, v in enumerate(wf):
                 rows.append(
                     {
-                        "freq_hz": 0.0,
+                        "freq_hz": float(freq_hz),
                         "level_db": float(level_db),
                         "trace_id": str(record_no),
                         "sample_idx": int(i),
@@ -45,6 +46,7 @@ class TDTIngestor(BaseIngestor):
             duration_ms = None
             n_points = None
             level_db = None
+            freq_hz = 0.0
             wf = []
 
         with path.open("r", encoding="utf-8", errors="ignore") as f:
@@ -78,6 +80,12 @@ class TDTIngestor(BaseIngestor):
                     part = line.split("Level =", 1)[1].strip()
                     level_db = float(part.split("dB", 1)[0].strip())
                     continue
+                
+                if in_variables and "Freq =" in line and "Hz" in line:
+                    part = line.split("Freq =", 1)[1].strip()
+                    freq_hz = float(part.split("Hz", 1)[0].strip())
+                    continue
+
 
                 try:
                     v = float(line)
