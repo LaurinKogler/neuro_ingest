@@ -4,7 +4,7 @@ from datetime import date
 import pandas as pd
 
 from neuro_ingest.schema import EvokedPotentialRow
-from neuro_ingest.ids import sha256_file, make_trace_uid
+from neuro_ingest.ids import sha256_file, make_trace_uid, make_sample_uid
 
 
 
@@ -48,11 +48,16 @@ class BaseIngestor(ABC):
                     raise ValueError(f"Parser did not set source_record_id for file {path}")
 
                 row["file_uid"] = file_uid
-                row["trace_uid"] = make_trace_uid(
+                trace_uid = make_trace_uid(
                     file_uid=file_uid,
-                    source_record_id=f"{row['source_record_id']}:{row['sample_idx']}",
+                    source_record_id=str(row["source_record_id"]),
                 )
 
+                row["trace_uid"] = trace_uid
+                row["sample_uid"] = make_sample_uid(
+                    trace_uid=trace_uid,
+                    sample_idx=int(row["sample_idx"]),
+                )
 
                 
                 validated = EvokedPotentialRow(**row)
@@ -61,7 +66,7 @@ class BaseIngestor(ABC):
         df = pd.DataFrame(records)
 
         # fail on duplicate traces
-        dup = df["trace_uid"].duplicated()
+        dup = df["sample_uid"].duplicated()
         if dup.any():
             n = int(dup.sum())
             raise ValueError(f"Duplicate trace_uid detected ({n} duplicates). Aborting ingest.")

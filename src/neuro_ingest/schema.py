@@ -25,7 +25,9 @@ class EvokedPotentialRow(BaseModel):
     # --- trace identity ---
     file_uid: str
     source_record_id: str
-    trace_uid: str
+    trace_uid: str        # Trace-Gruppe
+    sample_uid: str       # einzelne Sample-Zeile
+
 
     repetition_idx: Optional[int] = None
 

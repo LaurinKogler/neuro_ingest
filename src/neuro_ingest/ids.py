@@ -19,3 +19,8 @@ def sha256_text(text: str) -> str:
 
 def make_trace_uid(*, file_uid: str, source_record_id: str) -> str:
     return sha256_text(f"{file_uid}:{source_record_id}")
+
+
+def make_sample_uid(*, trace_uid: str, sample_idx: int) -> str:
+    return sha256_text(f"{trace_uid}:{sample_idx}")
+
