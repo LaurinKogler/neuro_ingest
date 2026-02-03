@@ -48,13 +48,26 @@ class BaseIngestor(ABC):
                     raise ValueError(f"Parser did not set source_record_id for file {path}")
 
                 row["file_uid"] = file_uid
-                row["trace_uid"] = make_trace_uid(file_uid=file_uid, source_record_id=str(row["source_record_id"]))
+                row["trace_uid"] = make_trace_uid(
+                    file_uid=file_uid,
+                    source_record_id=f"{row['source_record_id']}:{row['sample_idx']}",
+                )
+
 
                 
                 validated = EvokedPotentialRow(**row)
                 records.append(validated.model_dump())
 
-        return pd.DataFrame(records)
+        df = pd.DataFrame(records)
+
+        # fail on duplicate traces
+        dup = df["trace_uid"].duplicated()
+        if dup.any():
+            n = int(dup.sum())
+            raise ValueError(f"Duplicate trace_uid detected ({n} duplicates). Aborting ingest.")
+
+        
+        return df
 
     def _resolve_paths(self, paths):
         if isinstance(paths, (list, tuple)):
