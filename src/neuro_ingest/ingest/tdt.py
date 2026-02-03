@@ -35,7 +35,7 @@ class TDTIngestor(BaseIngestor):
                     {
                         "freq_hz": float(freq_hz),
                         "level_db": float(level_db),
-                        "trace_id": str(record_no),
+                        "source_record_id": str(record_no),
                         "sample_idx": int(i),
                         "time_ms": float(i * dt),
                         "amplitude_uv": float(v * 1e6),

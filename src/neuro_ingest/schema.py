@@ -23,7 +23,10 @@ class EvokedPotentialRow(BaseModel):
     stimulus_label: Optional[str] = None
 
     # --- trace identity ---
-    trace_id: str
+    file_uid: str
+    source_record_id: str
+    trace_uid: str
+
     repetition_idx: Optional[int] = None
 
     # --- time axis ---

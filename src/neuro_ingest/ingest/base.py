@@ -4,6 +4,8 @@ from datetime import date
 import pandas as pd
 
 from neuro_ingest.schema import EvokedPotentialRow
+from neuro_ingest.ids import sha256_file, make_trace_uid
+
 
 
 class BaseIngestor(ABC):
@@ -28,6 +30,7 @@ class BaseIngestor(ABC):
         records = []
 
         for path in paths:
+            file_uid = sha256_file(path)
             rows = self.parse_file(Path(path))
 
             for row in rows:
@@ -41,6 +44,13 @@ class BaseIngestor(ABC):
                     source_file=str(path),
                 )
 
+                if "source_record_id" not in row:
+                    raise ValueError(f"Parser did not set source_record_id for file {path}")
+
+                row["file_uid"] = file_uid
+                row["trace_uid"] = make_trace_uid(file_uid=file_uid, source_record_id=str(row["source_record_id"]))
+
+                
                 validated = EvokedPotentialRow(**row)
                 records.append(validated.model_dump())
 
