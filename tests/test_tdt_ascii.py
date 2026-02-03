@@ -19,6 +19,8 @@ def test_tdt_ascii_click_parses_to_schema_rows():
     )
 
     assert len(df) > 0
+    assert df["file_uid"].nunique() == 1
+    assert df["trace_uid"].nunique() >= 1
 
     first = df.iloc[0].to_dict()
     EvokedPotentialRow(**first)

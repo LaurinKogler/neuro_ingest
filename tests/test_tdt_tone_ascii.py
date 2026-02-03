@@ -19,3 +19,5 @@ def test_tdt_ascii_tone_sets_freq_hz():
 
     assert len(df) > 0
     assert (df["freq_hz"] > 0).any()
+    assert df["file_uid"].nunique() == 1
+    assert df["trace_uid"].nunique() >= 1
