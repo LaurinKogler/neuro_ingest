@@ -14,6 +14,9 @@ class EvokedPotentialRow(BaseModel):
     day: Optional[int] = None
     system: str
     paradigm: str
+    stim_ear: str | None = None
+    rec_ear: str | None = None
+    rel_ear: str | None = None
 
     # --- stimulus metadata ---
     freq_hz: float = Field(
@@ -27,7 +30,6 @@ class EvokedPotentialRow(BaseModel):
     source_record_id: str
     trace_uid: str        # Trace-Gruppe
     sample_uid: str       # einzelne Sample-Zeile
-
 
     repetition_idx: Optional[int] = None
 

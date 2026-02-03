@@ -43,6 +43,15 @@ class BaseIngestor(ABC):
                     paradigm=paradigm,
                     source_file=str(path),
                 )
+                
+                stim = row.get("stim_ear")
+                rec = row.get("rec_ear")
+
+                if stim is not None and rec is not None:
+                    row["rel_ear"] = "ipsi" if stim == rec else "contra"
+                else:
+                    row["rel_ear"] = None
+
 
                 if "source_record_id" not in row:
                     raise ValueError(f"Parser did not set source_record_id for file {path}")
