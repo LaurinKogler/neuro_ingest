@@ -7,6 +7,7 @@ from typing import Literal
 import pandas as pd
 
 from neuro_ingest.ingest.tdt import TDTIngestor
+from neuro_ingest.ingest.ihs import IHSIngestor
 from neuro_ingest.io import save_session_parquet
 
 
@@ -39,8 +40,11 @@ def ingest_session(
 
     if system == "TDT":
         ing = TDTIngestor()
+    elif system == "IHS":
+        ing = IHSIngestor()
     else:
-        raise ValueError(f"Unsupported system: {system}")
+        raise ValueError(...)
+
 
     files = sorted(input_path.rglob(pattern)) if input_path.is_dir() else [input_path]
     if not files:
