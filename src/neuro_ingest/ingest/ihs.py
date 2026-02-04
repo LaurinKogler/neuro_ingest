@@ -24,7 +24,12 @@ class IHSIngestor(BaseIngestor):
             if ln.startswith("Intensity"):
                 intensities = [float(x) for x in ln.split(",")[1:] if x]
             elif ln.startswith("Stim. Freq"):
-                stim_freqs = [float(x) for x in ln.split(",")[1:] if x]
+                stim_freqs = []
+                for x in ln.split(",")[1:]:
+                    x = x.strip()
+                    if not x:
+                        continue
+                    stim_freqs.append(float(x))
             elif ln.startswith("Channel"):
                 channels = ln.split(",")[1:]
             elif ln.startswith("Smp. Period"):

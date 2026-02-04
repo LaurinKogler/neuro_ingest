@@ -43,8 +43,7 @@ def ingest_session(
     elif system == "IHS":
         ing = IHSIngestor()
     else:
-        raise ValueError(...)
-
+        raise ValueError(f"Unsupported system: {system}")
 
     files = sorted(input_path.rglob(pattern)) if input_path.is_dir() else [input_path]
     if not files:
