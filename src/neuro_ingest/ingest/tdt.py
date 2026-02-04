@@ -10,6 +10,21 @@ from neuro_ingest.ingest.base import BaseIngestor
 class TDTIngestor(BaseIngestor):
     system = "TDT"
 
+    def can_parse(self, path: Path) -> bool:
+        if not path.suffix.lower() in {".txt", ".asc"}:
+            return False
+
+        try:
+            with path.open("r", errors="ignore") as f:
+                for _ in range(50):
+                    line = f.readline()
+                    if "ABR Group Header" in line:
+                        return True
+        except Exception:
+            return False
+
+        return False
+
     def parse_file(self, path: Path) -> List[Dict]:
         rows: List[Dict] = []
 

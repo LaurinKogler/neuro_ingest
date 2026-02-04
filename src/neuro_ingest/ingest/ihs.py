@@ -5,6 +5,17 @@ from neuro_ingest.ingest.base import BaseIngestor
 class IHSIngestor(BaseIngestor):
     system = "IHS"
 
+    def can_parse(self, path: Path) -> bool:
+        if not path.suffix.lower() in {".txt", ".csv"}:
+            return False
+
+        try:
+            with path.open("r", errors="ignore") as f:
+                header = f.read(2000)
+                return "Intensity" in header and "Stim" in header
+        except Exception:
+            return False
+
     def parse_file(self, path: Path) -> list[dict]:
         rows = []
 

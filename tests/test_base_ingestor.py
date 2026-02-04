@@ -8,6 +8,9 @@ from neuro_ingest.schema import EvokedPotentialRow
 class DummyIngestor(BaseIngestor):
     system = "DUMMY"
 
+    def can_parse(self, path):
+        return True
+
     def parse_file(self, path):
         return [{
             "freq_hz": 0.0,
@@ -42,6 +45,10 @@ def test_base_ingestor_produces_schema_rows(tmp_path: Path):
 
 class DummyDupIngestor(BaseIngestor):
     system = "DUMMY"
+
+    def can_parse(self, path):
+        return True
+
 
     def parse_file(self, path):
         return [
