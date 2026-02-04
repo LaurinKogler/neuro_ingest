@@ -11,6 +11,11 @@ from neuro_ingest.ids import sha256_file, make_trace_uid, make_sample_uid
 class BaseIngestor(ABC):
     system: str  # must be set by subclasses
 
+    @abstractmethod
+    def can_parse(self, path: Path) -> bool:
+        """Return True if this ingestor can handle the given file."""
+        raise NotImplementedError
+
     def ingest(
         self,
         paths,
