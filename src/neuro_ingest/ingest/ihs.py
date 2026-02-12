@@ -46,7 +46,8 @@ class IHSIngestor(BaseIngestor):
             elif ln.startswith("Smp. Period"):
                 smp_period_us = float(ln.split(",")[1])
             elif ln.startswith("Ear"):
-                stim_ear = ln.split(",")[1].lower()
+                e = ln.split(",")[1].strip().upper()
+                stim_ear = "left" if e == "L" else "right" if e == "R" else None
             elif ln.startswith("Data Pnt"):
                 data_start = i + 1
                 break
@@ -60,12 +61,22 @@ class IHSIngestor(BaseIngestor):
         # --- 2) Trace-Metadaten vorbereiten ---
         n_traces = len(intensities)
 
+        skipped = 0
         trace_meta = []
+
         for idx in range(n_traces):
-            ch = channels[idx].strip().upper()
-            rec_ear = "right" if ch == "A" else "left"
+            ch = channels[idx].strip()
+
+            if ch == "1":
+                rec_ear = "right"
+            elif ch == "2":
+                rec_ear = "left"
+            else:
+                skipped += 1
+                continue
 
             trace_meta.append({
+                "col_idx": idx,   # wichtig!
                 "source_record_id": f"{idx}",
                 "level_db": intensities[idx],
                 "freq_hz": stim_freqs[idx] if stim_freqs else 0.0,
@@ -80,13 +91,12 @@ class IHSIngestor(BaseIngestor):
             sample_idx = int(parts[0]) - 1
             time_ms = sample_idx * smp_period_us / 1000.0
 
-            values = parts[1::6]  # Average(uV) liegt hier
+            values = parts[2::6]  # Average(uV)
 
-            for i, val in enumerate(values):
+            for meta in trace_meta:
+                val = values[meta["col_idx"]]
                 if not val:
                     continue
-
-                meta = trace_meta[i]
 
                 rows.append({
                     "source_record_id": meta["source_record_id"],
@@ -98,5 +108,9 @@ class IHSIngestor(BaseIngestor):
                     "time_ms": time_ms,
                     "amplitude_uv": float(val),
                 })
+
+        if skipped:
+            print(f"[IHS] Skipped {skipped} traces with channels not in {{1,2}} for {path.name}")
+
 
         return rows
