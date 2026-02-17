@@ -77,13 +77,16 @@ class BaseIngestor(ABC):
                 validated = EvokedPotentialRow(**row)
                 records.append(validated.model_dump())
 
+        if not records:
+            raise ValueError("No parseable rows produced for provided input files.")
+
         df = pd.DataFrame(records)
 
         # fail on duplicate traces
         dup = df["sample_uid"].duplicated()
         if dup.any():
             n = int(dup.sum())
-            raise ValueError(f"Duplicate trace_uid detected ({n} duplicates). Aborting ingest.")
+            raise ValueError(f"Duplicate sample_uid detected ({n} duplicates). Aborting ingest.")
 
         
         return df

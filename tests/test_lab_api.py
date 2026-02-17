@@ -1,5 +1,6 @@
 from datetime import date
 from pathlib import Path
+import pytest
 from neuro_ingest.lab import ingest_session
 
 
@@ -24,3 +25,11 @@ def test_ingest_session_tdt_folder(tmp_path: Path):
 
     assert out_path.exists()
     assert len(df) > 0
+
+
+def test_ingest_session_requires_compatible_files(tmp_path: Path):
+    folder = tmp_path / "input"
+    folder.mkdir()
+    (folder / "notes.md").write_text("not acquisition data")
+    with pytest.raises(FileNotFoundError, match="TDT-compatible"):
+        ingest_session(system="TDT", input_path=folder, out_dir=tmp_path / "out", animal_id="AC04", session_date=date(2025, 10, 17))

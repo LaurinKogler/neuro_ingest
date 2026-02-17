@@ -6,12 +6,11 @@ from typing import Literal
 
 import pandas as pd
 
-from neuro_ingest.ingest.tdt import TDTIngestor
-from neuro_ingest.ingest.ihs import IHSIngestor
+from neuro_ingest.ingest.registry import INGESTORS
 from neuro_ingest.io import save_session_parquet
 
 
-System = Literal["TDT"]  # extend later: "IHS"
+System = Literal["TDT", "IHS"]
 
 
 def ingest_session(
@@ -25,7 +24,7 @@ def ingest_session(
     day: int | None = None,
     session_id: str | None = None,
     overwrite: bool = False,
-    pattern: str = "*.txt",
+    pattern: str = "*",
 ) -> tuple[pd.DataFrame, Path]:
     """
     Lab-facing one-call API.
@@ -38,16 +37,15 @@ def ingest_session(
     if session_id is None:
         session_id = f"{animal_id}_{session_date:%Y%m%d}"
 
-    if system == "TDT":
-        ing = TDTIngestor()
-    elif system == "IHS":
-        ing = IHSIngestor()
-    else:
+    try:
+        ing = next(i for i in INGESTORS if i.system == system)
+    except StopIteration:
         raise ValueError(f"Unsupported system: {system}")
 
     files = sorted(input_path.rglob(pattern)) if input_path.is_dir() else [input_path]
+    files = [p for p in files if ing.can_parse(p)]
     if not files:
-        raise FileNotFoundError(f"No files matching {pattern} in {input_path}")
+        raise FileNotFoundError(f"No {system}-compatible files matching {pattern} in {input_path}")
 
     df = ing.ingest(
         paths=files,

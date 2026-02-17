@@ -65,6 +65,9 @@ class IHSIngestor(BaseIngestor):
         trace_meta = []
 
         for idx in range(n_traces):
+            if idx >= len(channels):
+                skipped += 1
+                continue
             ch = channels[idx].strip()
 
             if ch == "1":
@@ -87,6 +90,8 @@ class IHSIngestor(BaseIngestor):
         # --- 3) Datenblock parsen ---
         for ln in lines[data_start:]:
             parts = ln.split(",")
+            if len(parts) < 3:
+                continue
 
             sample_idx = int(parts[0]) - 1
             time_ms = sample_idx * smp_period_us / 1000.0
@@ -94,7 +99,10 @@ class IHSIngestor(BaseIngestor):
             values = parts[2::6]  # Average(uV)
 
             for meta in trace_meta:
-                val = values[meta["col_idx"]]
+                ci = meta["col_idx"]
+                if ci >= len(values):
+                    continue
+                val = values[ci]
                 if not val:
                     continue
 

@@ -77,7 +77,7 @@ def test_duplicate_trace_uid_raises(tmp_path: Path):
 
     ing = DummyDupIngestor()
 
-    with pytest.raises(ValueError, match="Duplicate trace_uid"):
+    with pytest.raises(ValueError, match="Duplicate sample_uid"):
         ing.ingest(
             paths=[dummy_file],
             animal_id="X00",
@@ -85,3 +85,14 @@ def test_duplicate_trace_uid_raises(tmp_path: Path):
             paradigm="abr",
             day=0,
         )
+
+
+def test_empty_parser_output_raises(tmp_path: Path):
+    class EmptyIngestor(DummyIngestor):
+        def parse_file(self, path):
+            return []
+
+    dummy_file = tmp_path / "fake.txt"
+    dummy_file.write_text("dummy")
+    with pytest.raises(ValueError, match="No parseable rows"):
+        EmptyIngestor().ingest(paths=[dummy_file], animal_id="X00", session_date=date(2025, 1, 1), paradigm="abr")
