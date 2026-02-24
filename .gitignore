@@ -16,6 +16,8 @@ data/
 raw/
 normalized/
 *.parquet
+!tests/data/
+!tests/data/**
 
 # OS
 .DS_Store
