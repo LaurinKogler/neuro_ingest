@@ -233,7 +233,34 @@ $env:NEURO_INGEST_ENV_PREFIX = "C:\Users\Admin\miniconda3\envs\neuro-ingest"
 $env:NEURO_INGEST_CONDA_EXE = "C:\Users\Admin\miniconda3\Scripts\conda.exe"
 ```
 
-## 11. Current Scope (0.2.x)
+## 11. Drag-and-Drop Ingest UI
+
+You can ingest files without writing code via Streamlit UI.
+
+Start it:
+
+```powershell
+scripts/run_ingest_ui.ps1
+```
+
+The launcher sets safer defaults:
+- `--server.address localhost` (local-only binding)
+- `--browser.gatherUsageStats false` (no Streamlit telemetry)
+
+Workflow:
+- drag one or more files into upload area
+- choose `System` (`Auto`, `TDT`, `IHS`)
+- fill required metadata (`Animal ID`, `Session date`)
+- optionally set `Day`, `Session ID`, and overwrite mode
+- set output paths (`Parquet output dir`, `DuckDB path`)
+- click **Ingest**
+
+After ingest, the UI shows:
+- status + write locations
+- row preview
+- quick ABR plot preview
+
+## 12. Current Scope (0.2.x)
 
 Included:
 - ingest/normalize

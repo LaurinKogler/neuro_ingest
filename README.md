@@ -4,6 +4,7 @@
 - ingestion and normalization of vendor exports
 - local persistence (Parquet + DuckDB)
 - interactive ABR plotting in Jupyter
+- drag-and-drop ingestion UI for local use
 
 Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
@@ -14,6 +15,7 @@ Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 - `neuro_ingest.storage`: Parquet and DuckDB stores + storage service
 - `neuro_ingest.plot`: interactive ABR plotting service
 - `neuro_ingest.toolbox`: single facade for notebook workflows
+- `scripts/ingest_ui.py`: Streamlit drag-and-drop ingest app
 
 ## Quick Workflow
 
@@ -71,6 +73,20 @@ Or pass custom pytest arguments:
 ```powershell
 scripts/run_tests.ps1 tests/test_lab_api.py -q
 ```
+
+## Drag-and-Drop UI
+
+Start the local ingest UI:
+
+```powershell
+scripts/run_ingest_ui.ps1
+```
+
+Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
+
+Security defaults in this launcher:
+- binds to `localhost` only
+- disables Streamlit usage telemetry (`browser.gatherUsageStats=false`)
 
 ## Environment
 

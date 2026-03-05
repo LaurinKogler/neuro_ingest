@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol
+
+from neuro_ingest.ingest.registry import detect_ingestor
+from neuro_ingest.toolbox import NeuroAudioToolbox
+
+
+class UploadedFileLike(Protocol):
+    name: str
+
+    def getbuffer(self) -> bytes:
+        ...
+
+
+def stage_uploaded_files(uploaded_files: list[UploadedFileLike], target_dir: str | Path) -> list[Path]:
+    target = Path(target_dir)
+    target.mkdir(parents=True, exist_ok=True)
+
+    staged: list[Path] = []
+    for uploaded in uploaded_files:
+        safe_name = Path(uploaded.name).name
+        out_path = target / safe_name
+        out_path.write_bytes(bytes(uploaded.getbuffer()))
+        staged.append(out_path)
+    return staged
+
+
+def resolve_system(system_choice: str, staged_paths: list[Path]) -> str:
+    if system_choice.upper() in {"TDT", "IHS"}:
+        return system_choice.upper()
+    if system_choice.upper() != "AUTO":
+        raise ValueError(f"Unsupported system selection: {system_choice}")
+
+    for path in staged_paths:
+        try:
+            return detect_ingestor(path).system
+        except Exception:
+            continue
+    raise ValueError("Could not auto-detect system from uploaded files.")
+
+
+def ingest_and_save(
+    *,
+    toolbox: NeuroAudioToolbox,
+    system: str,
+    input_dir: str | Path,
+    animal_id: str,
+    session_date,
+    paradigm: str,
+    day: int | None,
+    session_id: str | None,
+    overwrite: bool,
+):
+    session = toolbox.ingest(
+        system=system,
+        input_path=input_dir,
+        animal_id=animal_id,
+        session_date=session_date,
+        paradigm=paradigm,
+        day=day,
+        session_id=session_id,
+    )
+    result = toolbox.save(session, overwrite=overwrite)
+    return session, result
