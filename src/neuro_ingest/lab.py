@@ -6,8 +6,8 @@ from typing import Literal
 
 import pandas as pd
 
-from neuro_ingest.ingest.registry import INGESTORS
-from neuro_ingest.io import save_session_parquet
+from neuro_ingest.ingest.service import IngestService
+from neuro_ingest.storage.service import StorageService
 
 
 System = Literal["TDT", "IHS"]
@@ -25,36 +25,28 @@ def ingest_session(
     session_id: str | None = None,
     overwrite: bool = False,
     pattern: str = "*",
+    db_path: str | Path | None = None,
 ) -> tuple[pd.DataFrame, Path]:
     """
-    Lab-facing one-call API.
-    Accepts a folder or list of files later (we keep it folder for now).
+    Backward-compatible one-call API.
+    Delegates to IngestService + StorageService.
     """
-
-    input_path = Path(input_path)
     out_dir = Path(out_dir)
+    if db_path is None:
+        db_path = out_dir / "neuro_audio.duckdb"
 
-    if session_id is None:
-        session_id = f"{animal_id}_{session_date:%Y%m%d}"
-
-    try:
-        ing = next(i for i in INGESTORS if i.system == system)
-    except StopIteration:
-        raise ValueError(f"Unsupported system: {system}")
-
-    files = sorted(input_path.rglob(pattern)) if input_path.is_dir() else [input_path]
-    files = [p for p in files if ing.can_parse(p)]
-    if not files:
-        raise FileNotFoundError(f"No {system}-compatible files matching {pattern} in {input_path}")
-
-    df = ing.ingest(
-        paths=files,
+    ingest_service = IngestService()
+    session = ingest_service.ingest_path(
+        system=system,
+        input_path=input_path,
         animal_id=animal_id,
         session_date=session_date,
         paradigm=paradigm,
         day=day,
         session_id=session_id,
+        pattern=pattern,
     )
 
-    out_path = save_session_parquet(df, out_dir, system=ing.system, session_id=session_id, overwrite=overwrite)
-    return df, out_path
+    storage_service = StorageService(db_path=db_path, parquet_dir=out_dir)
+    result = storage_service.append_session(session, overwrite=overwrite)
+    return session.rows, result.parquet_path

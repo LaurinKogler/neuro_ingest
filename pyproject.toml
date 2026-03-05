@@ -4,9 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuro-ingest"
-version = "0.1.0"
-description = "System-agnostic ingestion and normalization for neurophysiology data"
+version = "0.2.0"
+description = "Modular neuro-audio toolbox for ingest, storage, and visualization"
 requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.0",
+    "numpy<2.0",
+    "pandas>=2.0",
+    "plotly>=5.0",
+    "pyarrow>=12.0",
+    "pydantic>=2.0",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -1,99 +1,84 @@
 # neuro_ingest
 
-**neuro_ingest** is a system-agnostic ingestion and normalization pipeline for
-neurophysiological acquisition data focused promarily on audiological signals like ABR, DPOAE and VEMPs.
+`neuro_ingest` is now a modular neuro-audio toolbox for:
+- ingestion and normalization of vendor exports
+- local persistence (Parquet + DuckDB)
+- interactive ABR plotting in Jupyter
 
-Its purpose is to transform raw vendor outputs into a durable, explicit,
-and analysis-ready canonical format.
+## Module Map
 
----
+- `neuro_ingest.ingest`: vendor parsers + ingestion orchestration
+- `neuro_ingest.data`: typed in-memory session model (`SessionData`)
+- `neuro_ingest.storage`: Parquet and DuckDB stores + storage service
+- `neuro_ingest.plot`: interactive ABR plotting service
+- `neuro_ingest.toolbox`: single facade for notebook workflows
 
-## Scope and Philosophy
+## Quick Workflow
 
-This project is intentionally limited in scope.
+```python
+from datetime import date
+from neuro_ingest.toolbox import NeuroAudioToolbox
 
-### This project **does**
-- ingest raw data from acquisition systems (e.g. TDT, IHS)
-- normalize heterogeneous vendor outputs into a canonical table schema
-- validate structure and basic integrity
-- write durable, language-agnostic storage (Parquet)
-- preserve provenance and metadata explicitly
+toolbox = NeuroAudioToolbox(
+    db_path="normalized/neuro_audio.duckdb",
+    parquet_dir="normalized",
+)
 
-### This project **does not**
-- perform signal analysis
-- compute thresholds or features
-- plot or visualize data
-- make scientific assumptions about paradigms
-- merge data across acquisition systems
+session = toolbox.ingest(
+    system="TDT",
+    input_path="raw/TDT/session_001",
+    animal_id="AC04",
+    session_date=date(2025, 10, 17),
+)
+toolbox.save(session, overwrite=False)
 
-Analysis, visualization, and modeling are expected to happen in **downstream projects**.
+df = toolbox.query("SELECT * FROM samples WHERE animal_id = ?", ["AC04"])
+fig = toolbox.plot(df, color_by="level_db")
+fig.show()
+```
 
----
+## Backward Compatibility
 
-## Design Principles
+The lab-facing function `neuro_ingest.lab.ingest_session(...)` is still available.
+It now delegates to the new services and writes both Parquet and DuckDB outputs.
 
-1. **Ingest early, integrate late**  
-   Data from different systems is normalized independently.
-   Integration happens only when scientifically justified.
+## Test Runner
 
-2. **Schema over filenames**  
-   No semantic meaning is inferred from folder structures or file names
-   beyond minimal identifiers.
+Use the project script:
 
-3. **Explicit over implicit**  
-   All relevant metadata exists as columns, not encoded in paths.
+```powershell
+scripts/run_tests.ps1
+```
 
-4. **Long-term stability**  
-   Output data is expected to remain readable and meaningful for years.
+If Conda is not on PATH, set:
 
----
+```powershell
+$env:NEURO_INGEST_CONDA_EXE = "C:\path\to\conda.exe"
+```
 
-## Canonical Output Format
+Or bypass Conda discovery entirely:
 
-The pipeline outputs **Parquet files**, one per:
+```powershell
+$env:NEURO_INGEST_ENV_PREFIX = "C:\Users\Admin\miniconda3\envs\neuro-ingest"
+# or
+$env:NEURO_INGEST_PYTHON_EXE = "C:\Users\Admin\miniconda3\envs\neuro-ingest\python.exe"
+```
 
-> acquisition system × recording session
+Or pass custom pytest arguments:
 
-Each file contains a single table in long format.
-
-Parquet was chosen because it is:
-- columnar and efficient
-- language agnostic
-- supported by modern data ecosystems
-
----
-
-## Folder Layout (recommended)
-
-This repository contains **only code**.
-
-Raw and normalized data must live outside the repository, for example:
-
-  raw_data/
-    TDT/
-    IHS/
-
-  normalized_data/
-    TDT/
-    IHS/
-
-No raw or normalized data should ever be committed to Git.
-
----
+```powershell
+scripts/run_tests.ps1 tests/test_lab_api.py -q
+```
 
 ## Environment
-
-The project uses a dedicated Conda environment defined in `environment.yml`.
-
-To create the environment:
 
 ```bash
 conda env create -f environment.yml
 conda activate neuro-ingest
 ```
 
----
-## License
+If your existing environment already has NumPy 2.x and crashes on import on Windows, run:
 
-To be decided.
----
+```powershell
+conda install -n neuro-ingest "numpy<2"
+```
