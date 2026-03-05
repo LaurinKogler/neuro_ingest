@@ -5,6 +5,8 @@
 - local persistence (Parquet + DuckDB)
 - interactive ABR plotting in Jupyter
 
+Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+
 ## Module Map
 
 - `neuro_ingest.ingest`: vendor parsers + ingestion orchestration
