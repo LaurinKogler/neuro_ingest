@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import numpy as np
 import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
@@ -104,6 +105,10 @@ def main() -> None:
                     tdt_ear=selected_tdt_ear,
                 )
 
+            st.session_state["last_session_rows"] = session.rows
+            st.session_state["last_session_id"] = session.session_id
+            st.session_state["last_session_title"] = f"{session.session_id} ABR"
+
             st.success("Ingest completed.")
             m1, m2, m3 = st.columns(3)
             m1.metric("System", session.system)
@@ -111,15 +116,68 @@ def main() -> None:
             m3.metric("Rows Written", int(result.rows_written))
             st.write(f"Parquet: `{result.parquet_path}`")
             st.write(f"DuckDB: `{result.db_path}`")
-
-            with st.expander("Preview rows", expanded=True):
-                st.dataframe(session.rows.head(300), use_container_width=True)
-
-            fig = toolbox.plot(session.rows, color_by="level_db", title=f"{session.session_id} ABR")
-            st.plotly_chart(fig, use_container_width=True)
         except Exception as exc:
             st.error(f"Ingest failed: {exc}")
             st.exception(exc)
+
+    if "last_session_rows" in st.session_state:
+        rows = st.session_state["last_session_rows"]
+        plot_title = st.session_state.get("last_session_title", "ABR Traces")
+
+        with st.expander("Preview rows", expanded=False):
+            st.dataframe(rows.head(300), use_container_width=True)
+
+        st.subheader("ABR Viewer Controls")
+        freq_values = sorted(float(v) for v in rows["freq_hz"].dropna().unique())
+        if not freq_values:
+            st.warning("No frequency values available for plotting.")
+            return
+
+        selected_freq = st.selectbox(
+            "Frequency (Hz)",
+            options=freq_values,
+            format_func=lambda x: f"{x:g}",
+        )
+        relation_label = st.radio(
+            "Relation mode",
+            options=["ipsi only", "ipsi + contra"],
+            index=0,
+            horizontal=True,
+        )
+        relation_mode = "ipsi_contra" if relation_label == "ipsi + contra" else "ipsi"
+
+        abs_amp = np.abs(rows["amplitude_uv"].to_numpy(dtype=float))
+        p95 = float(np.percentile(abs_amp, 95)) if len(abs_amp) else 1.0
+        if not np.isfinite(p95) or p95 <= 0:
+            p95 = 1.0
+        max_spacing = max(1.0, 2.0 * p95)
+        step = max(0.01, max_spacing / 100.0)
+        spacing_uv = st.slider(
+            "Trace spacing (uV)",
+            min_value=0.0,
+            max_value=float(max_spacing),
+            value=0.0,
+            step=float(step),
+        )
+
+        freq_rows = rows[np.isclose(rows["freq_hz"].astype(float), float(selected_freq))]
+        if relation_mode == "ipsi_contra" and not (freq_rows["rel_ear"].fillna("ipsi") == "contra").any():
+            st.info("No contra rows for this frequency; viewer will show ipsi only.")
+
+        toolbox = NeuroAudioToolbox(
+            db_path=Path(db_path),
+            parquet_dir=Path(parquet_dir),
+        )
+        fig = toolbox.plot(
+            rows,
+            color_by="level_db",
+            title=plot_title,
+            frequency_hz=float(selected_freq),
+            relation_mode=relation_mode,
+            spacing_uv=float(spacing_uv),
+            intensity_order="desc",
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 
 if __name__ == "__main__":

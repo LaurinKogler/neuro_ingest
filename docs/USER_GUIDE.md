@@ -133,6 +133,10 @@ Plot from a query result:
 ```python
 fig = toolbox.plot(
     df,
+    frequency_hz=0.0,        # mandatory if >1 frequency present
+    relation_mode="ipsi",    # "ipsi" or "ipsi_contra"
+    spacing_uv=0.0,          # vertical offset in uV between intensity groups
+    intensity_order="desc",  # "desc" or "asc"
     color_by="level_db",     # default; also e.g. "freq_hz"
     group_by="trace_uid",    # default trace grouping
     filters={"system": "TDT"},
@@ -143,7 +147,12 @@ fig.show()
 
 Plot behavior:
 - interactive Plotly figure
+- one-frequency-at-a-time view
+- ipsi-only default mode
+- optional ipsi/contra side-by-side layout (ipsi left, contra right)
 - fixed X-axis (time) to prioritize Y-axis amplitude zoom
+- Y-axis remains zoomable
+- configurable vertical spacing per intensity
 - legend toggles for trace visibility
 - color mapping by selected column
 
@@ -185,7 +194,7 @@ subset = toolbox.query(
     [session.session_id, 70],
 )
 
-fig = toolbox.plot(subset, color_by="level_db")
+fig = toolbox.plot(subset, frequency_hz=0.0, relation_mode="ipsi", color_by="level_db")
 fig.show()
 ```
 
@@ -259,7 +268,10 @@ Workflow:
 After ingest, the UI shows:
 - status + write locations
 - row preview
-- quick ABR plot preview
+- ABR viewer controls:
+  - frequency dropdown (single frequency selection)
+  - relation mode (`ipsi only` or `ipsi + contra`)
+  - spacing slider (`uV`)
 
 ## 12. Current Scope (0.2.x)
 

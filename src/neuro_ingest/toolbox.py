@@ -73,6 +73,10 @@ class NeuroAudioToolbox:
         group_by: str = "trace_uid",
         filters: dict[str, Any] | None = None,
         title: str = "ABR Traces",
+        frequency_hz: float | None = None,
+        relation_mode: Literal["ipsi", "ipsi_contra"] = "ipsi",
+        spacing_uv: float = 0.0,
+        intensity_order: Literal["desc", "asc"] = "desc",
     ) -> go.Figure:
         return self.plot_service.plot_abr(
             data,
@@ -80,4 +84,8 @@ class NeuroAudioToolbox:
             group_by=group_by,
             filters=filters,
             title=title,
+            frequency_hz=frequency_hz,
+            relation_mode=relation_mode,
+            spacing_uv=spacing_uv,
+            intensity_order=intensity_order,
         )

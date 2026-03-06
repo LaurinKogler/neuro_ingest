@@ -37,7 +37,13 @@ session = toolbox.ingest(
 toolbox.save(session, overwrite=False)
 
 df = toolbox.query("SELECT * FROM samples WHERE animal_id = ?", ["AC04"])
-fig = toolbox.plot(df, color_by="level_db")
+fig = toolbox.plot(
+    df,
+    frequency_hz=0.0,         # required if dataset contains >1 frequency
+    relation_mode="ipsi",     # or "ipsi_contra"
+    spacing_uv=0.0,           # vertical trace spacing in uV
+    color_by="level_db",
+)
 fig.show()
 ```
 
@@ -84,6 +90,10 @@ scripts/run_ingest_ui.ps1
 
 Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
 For TDT uploads, confirm the ear side before ingest (inference is shown from filename tokens when possible).
+After ingest, use ABR viewer controls for:
+- single-frequency selection
+- ipsi only vs ipsi+contra layout
+- vertical spacing slider (uV)
 
 Security defaults in this launcher:
 - binds to `localhost` only

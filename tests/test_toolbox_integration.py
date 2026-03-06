@@ -40,3 +40,11 @@ def test_toolbox_end_to_end(tmp_path: Path):
 
     fig = toolbox.plot(subset, color_by="level_db")
     assert isinstance(fig, go.Figure)
+    fig2 = toolbox.plot(
+        subset,
+        color_by="level_db",
+        frequency_hz=0.0,
+        relation_mode="ipsi",
+        spacing_uv=5.0,
+    )
+    assert isinstance(fig2, go.Figure)
