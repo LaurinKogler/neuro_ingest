@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from neuro_ingest.ingest.registry import detect_ingestor
+from neuro_ingest.ingest.tdt_ear import infer_tdt_ear_from_filenames
 from neuro_ingest.toolbox import NeuroAudioToolbox
 
 
@@ -41,6 +42,11 @@ def resolve_system(system_choice: str, staged_paths: list[Path]) -> str:
     raise ValueError("Could not auto-detect system from uploaded files.")
 
 
+def infer_tdt_ear_from_upload_names(uploaded_files: list[UploadedFileLike]) -> str | None:
+    pseudo_paths = [Path(uploaded.name) for uploaded in uploaded_files]
+    return infer_tdt_ear_from_filenames(pseudo_paths)
+
+
 def ingest_and_save(
     *,
     toolbox: NeuroAudioToolbox,
@@ -52,6 +58,7 @@ def ingest_and_save(
     day: int | None,
     session_id: str | None,
     overwrite: bool,
+    tdt_ear: Literal["left", "right"] | None,
 ):
     session = toolbox.ingest(
         system=system,
@@ -61,6 +68,7 @@ def ingest_and_save(
         paradigm=paradigm,
         day=day,
         session_id=session_id,
+        tdt_ear=tdt_ear,
     )
     result = toolbox.save(session, overwrite=overwrite)
     return session, result

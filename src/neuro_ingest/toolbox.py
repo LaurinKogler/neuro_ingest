@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -30,6 +30,7 @@ class NeuroAudioToolbox:
         day: int | None = None,
         session_id: str | None = None,
         pattern: str = "*",
+        tdt_ear: Literal["left", "right"] | None = None,
     ) -> SessionData:
         return self.ingest_service.ingest_path(
             system=system,
@@ -40,6 +41,7 @@ class NeuroAudioToolbox:
             day=day,
             session_id=session_id,
             pattern=pattern,
+            tdt_ear=tdt_ear,
         )
 
     def save(self, session: SessionData, *, overwrite: bool = False) -> StorageWriteResult:

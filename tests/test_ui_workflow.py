@@ -2,7 +2,12 @@ from datetime import date
 from pathlib import Path
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
-from neuro_ingest.ui.workflow import ingest_and_save, resolve_system, stage_uploaded_files
+from neuro_ingest.ui.workflow import (
+    infer_tdt_ear_from_upload_names,
+    ingest_and_save,
+    resolve_system,
+    stage_uploaded_files,
+)
 
 
 class FakeUpload:
@@ -31,6 +36,11 @@ def test_resolve_system_auto_detects_tdt():
     assert resolve_system("Auto", [path]) == "TDT"
 
 
+def test_infer_tdt_ear_from_upload_names():
+    uploads = [FakeUpload("AC04_ClickABR_right_20251017.txt", b"x")]
+    assert infer_tdt_ear_from_upload_names(uploads) == "right"
+
+
 def test_ingest_and_save_with_toolbox(tmp_path: Path):
     src = Path("tests/data/AC04_ClickABR_right_20251017.txt")
     input_dir = tmp_path / "input"
@@ -52,6 +62,7 @@ def test_ingest_and_save_with_toolbox(tmp_path: Path):
         day=0,
         session_id=None,
         overwrite=True,
+        tdt_ear="right",
     )
 
     assert len(session.rows) > 0

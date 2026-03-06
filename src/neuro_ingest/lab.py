@@ -26,6 +26,7 @@ def ingest_session(
     overwrite: bool = False,
     pattern: str = "*",
     db_path: str | Path | None = None,
+    tdt_ear: Literal["left", "right"] | None = None,
 ) -> tuple[pd.DataFrame, Path]:
     """
     Backward-compatible one-call API.
@@ -45,6 +46,9 @@ def ingest_session(
         day=day,
         session_id=session_id,
         pattern=pattern,
+        tdt_ear=tdt_ear,
+        infer_tdt_ear=True,
+        require_tdt_ear_confirmation=False,
     )
 
     storage_service = StorageService(db_path=db_path, parquet_dir=out_dir)

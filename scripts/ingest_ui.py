@@ -7,7 +7,12 @@ from tempfile import TemporaryDirectory
 import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
-from neuro_ingest.ui.workflow import ingest_and_save, resolve_system, stage_uploaded_files
+from neuro_ingest.ui.workflow import (
+    infer_tdt_ear_from_upload_names,
+    ingest_and_save,
+    resolve_system,
+    stage_uploaded_files,
+)
 
 
 def main() -> None:
@@ -20,6 +25,7 @@ def main() -> None:
         accept_multiple_files=True,
         type=["txt", "asc", "csv"],
     )
+    inferred_tdt_ear = infer_tdt_ear_from_upload_names(uploaded_files) if uploaded_files else None
 
     left, right = st.columns(2)
     with left:
@@ -34,6 +40,25 @@ def main() -> None:
         parquet_dir = st.text_input("Parquet output dir", value="normalized")
         db_path = st.text_input("DuckDB path", value="normalized/neuro_audio.duckdb")
         overwrite = st.checkbox("Overwrite existing session", value=False)
+
+    with st.expander("TDT ear metadata (required for TDT)", expanded=True):
+        if inferred_tdt_ear is None:
+            st.info("Filename inference: no unambiguous TDT ear found.")
+            default_idx = 0
+        else:
+            st.success(f"Filename inference suggests TDT ear: {inferred_tdt_ear}")
+            default_idx = 1 if inferred_tdt_ear == "right" else 0
+
+        tdt_ear = st.radio(
+            "Confirm TDT ear side",
+            options=["left", "right"],
+            index=default_idx,
+            horizontal=True,
+        )
+        confirm_tdt_ear = st.checkbox(
+            "I confirm this TDT ear selection is correct",
+            value=False,
+        )
 
     if st.button("Ingest", type="primary"):
         if not uploaded_files:
@@ -55,6 +80,11 @@ def main() -> None:
             with TemporaryDirectory(prefix="neuro_ingest_ui_") as tmpdir:
                 staged_paths = stage_uploaded_files(uploaded_files, tmpdir)
                 system = resolve_system(system_choice, staged_paths)
+                selected_tdt_ear = tdt_ear if system == "TDT" else None
+
+                if system == "TDT" and not confirm_tdt_ear:
+                    st.error("TDT ingest requires explicit ear confirmation before saving.")
+                    return
 
                 toolbox = NeuroAudioToolbox(
                     db_path=Path(db_path),
@@ -71,6 +101,7 @@ def main() -> None:
                     day=day,
                     session_id=session_id.strip() or None,
                     overwrite=overwrite,
+                    tdt_ear=selected_tdt_ear,
                 )
 
             st.success("Ingest completed.")

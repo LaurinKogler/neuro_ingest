@@ -22,6 +22,7 @@ def test_toolbox_end_to_end(tmp_path: Path):
         input_path=input_dir,
         animal_id="AC04",
         session_date=date(2025, 10, 17),
+        tdt_ear="right",
     )
     write_result = toolbox.save(session, overwrite=True)
 

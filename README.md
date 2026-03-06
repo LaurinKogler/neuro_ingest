@@ -83,6 +83,7 @@ scripts/run_ingest_ui.ps1
 ```
 
 Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
+For TDT uploads, confirm the ear side before ingest (inference is shown from filename tokens when possible).
 
 Security defaults in this launcher:
 - binds to `localhost` only
