@@ -1,4 +1,6 @@
 {
   "terminal.integrated.defaultProfile.windows": "Command Prompt",
-  "python.defaultInterpreterPath": "C:\\Users\\resch\\.conda\\envs\\neuro-ingest\\python.exe"
+  "python.defaultInterpreterPath": "C:\\Users\\resch\\.conda\\envs\\neuro-ingest\\python.exe",
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda"
 }

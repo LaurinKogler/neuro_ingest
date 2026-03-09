@@ -9,7 +9,7 @@ from neuro_ingest.data.models import SessionData
 
 def session_filename(*, system: str, session_id: str) -> str:
     safe = session_id.replace(" ", "_")
-    return f"{safe}__{system}.parquet"
+    return f"{safe}_{system}.parquet"
 
 
 class ParquetStore:
