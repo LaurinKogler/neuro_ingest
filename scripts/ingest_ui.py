@@ -170,7 +170,7 @@ def main() -> None:
     st.subheader("Viewer Data Source")
     source_mode = st.radio(
         "Choose rows for plotting",
-        options=["Last ingested session", "Parquet file", "DuckDB query"],
+        options=["Last ingested session", "Parquet file", "DuckDB filters (no SQL)", "DuckDB query"],
         horizontal=True,
         index=0,
     )
@@ -181,6 +181,30 @@ def main() -> None:
     with st.expander("Load Viewer Data", expanded=False):
         if source_mode == "Parquet file":
             parquet_path_input = st.text_input("Parquet path", value=default_parquet_path)
+        elif source_mode == "DuckDB filters (no SQL)":
+            db_filter_path = st.text_input("DuckDB path (filter mode)", value=default_db_path)
+            f1, f2, f3 = st.columns(3)
+            with f1:
+                filter_animal_id = st.text_input("animal_id (optional)", value="")
+            with f2:
+                filter_session_id = st.text_input("session_id (optional)", value="")
+            with f3:
+                filter_day_text = st.text_input("day (optional)", value="")
+            f4, f5, f6 = st.columns(3)
+            with f4:
+                filter_system = st.selectbox("system", options=["(any)", "TDT", "IHS"], index=0)
+            with f5:
+                filter_paradigm = st.text_input("paradigm (optional)", value="")
+            with f6:
+                filter_limit = int(
+                    st.number_input(
+                        "row limit",
+                        min_value=100,
+                        max_value=500000,
+                        value=50000,
+                        step=100,
+                    )
+                )
         elif source_mode == "DuckDB query":
             db_query_path = st.text_input("DuckDB path (viewer)", value=default_db_path)
             query_sql = st.text_area("SQL", value=query_sql, height=120)
@@ -205,6 +229,44 @@ def main() -> None:
                             st.session_state["viewer_rows"] = loaded
                             st.session_state["viewer_title"] = f"{Path(parquet_path_input).name} ABR"
                             st.success(f"Loaded {len(loaded)} rows from parquet.")
+                elif source_mode == "DuckDB filters (no SQL)":
+                    if not db_filter_path.strip():
+                        st.error("DuckDB path is required.")
+                    else:
+                        day_value = None
+                        if filter_day_text.strip():
+                            try:
+                                day_value = int(filter_day_text.strip())
+                            except ValueError:
+                                st.error("day must be an integer.")
+                                day_value = "invalid"
+
+                        if day_value != "invalid":
+                            filter_toolbox = NeuroAudioToolbox(
+                                db_path=Path(db_filter_path.strip()),
+                                parquet_dir=Path(parquet_dir),
+                            )
+                            loaded = filter_toolbox.get_samples(
+                                animal_id=filter_animal_id.strip() or None,
+                                session_id=filter_session_id.strip() or None,
+                                day=day_value,
+                                system=None if filter_system == "(any)" else filter_system,
+                                paradigm=filter_paradigm.strip() or None,
+                                limit=filter_limit,
+                            )
+                            if loaded.empty:
+                                st.warning("No rows found for selected filters.")
+                            else:
+                                title_bits = ["DuckDB Filters"]
+                                if filter_animal_id.strip():
+                                    title_bits.append(filter_animal_id.strip())
+                                if filter_session_id.strip():
+                                    title_bits.append(filter_session_id.strip())
+                                if day_value is not None:
+                                    title_bits.append(f"day {day_value}")
+                                st.session_state["viewer_rows"] = loaded
+                                st.session_state["viewer_title"] = " | ".join(title_bits)
+                                st.success(f"Loaded {len(loaded)} rows from DuckDB filters.")
                 else:
                     if not db_query_path.strip():
                         st.error("DuckDB path is required.")

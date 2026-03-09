@@ -95,6 +95,7 @@ After ingest, use ABR viewer controls for:
 - viewer data source selection:
   - last ingested session
   - parquet file path
+  - DuckDB filters (no SQL): `animal_id`, `session_id`, `day`, `system`, `paradigm`
   - DuckDB SQL query
 - DuckDB editor:
   - select session and traces

@@ -22,6 +22,7 @@ def test_toolbox_end_to_end(tmp_path: Path):
         input_path=input_dir,
         animal_id="AC04",
         session_date=date(2025, 10, 17),
+        day=1,
         tdt_ear="right",
     )
     write_result = toolbox.save(session, overwrite=True)
@@ -37,6 +38,15 @@ def test_toolbox_end_to_end(tmp_path: Path):
         params=[session.session_id],
     )
     assert len(subset) > 0
+
+    subset_no_sql = toolbox.get_samples(
+        animal_id="AC04",
+        day=1,
+        session_id=session.session_id,
+        system="TDT",
+        limit=1000,
+    )
+    assert len(subset_no_sql) > 0
 
     fig = toolbox.plot(subset, color_by="level_db")
     assert isinstance(fig, go.Figure)

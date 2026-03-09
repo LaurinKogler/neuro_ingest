@@ -50,6 +50,25 @@ class NeuroAudioToolbox:
     def query(self, sql: str, params: dict | list | tuple | None = None) -> pd.DataFrame:
         return self.storage_service.query(sql, params=params)
 
+    def get_samples(
+        self,
+        *,
+        animal_id: str | None = None,
+        session_id: str | None = None,
+        day: int | None = None,
+        system: str | None = None,
+        paradigm: str | None = None,
+        limit: int = 50000,
+    ) -> pd.DataFrame:
+        return self.storage_service.get_samples(
+            animal_id=animal_id,
+            session_id=session_id,
+            day=day,
+            system=system,
+            paradigm=paradigm,
+            limit=limit,
+        )
+
     def list_sessions(
         self,
         *,

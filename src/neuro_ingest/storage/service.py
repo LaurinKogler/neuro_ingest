@@ -28,6 +28,52 @@ class StorageService:
     def query(self, sql: str, params: dict | list | tuple | None = None) -> pd.DataFrame:
         return self.duckdb_store.query(sql, params=params)
 
+    def get_samples(
+        self,
+        *,
+        animal_id: str | None = None,
+        session_id: str | None = None,
+        day: int | None = None,
+        system: str | None = None,
+        paradigm: str | None = None,
+        limit: int = 50000,
+    ) -> pd.DataFrame:
+        if limit <= 0:
+            raise ValueError("limit must be > 0.")
+
+        filters: list[str] = []
+        values: list[object] = []
+
+        if animal_id is not None and animal_id.strip():
+            filters.append("animal_id = ?")
+            values.append(animal_id.strip())
+        if session_id is not None and session_id.strip():
+            filters.append("session_id = ?")
+            values.append(session_id.strip())
+        if day is not None:
+            filters.append("day = ?")
+            values.append(int(day))
+        if system is not None and system.strip():
+            filters.append("system = ?")
+            values.append(system.strip())
+        if paradigm is not None and paradigm.strip():
+            filters.append("paradigm = ?")
+            values.append(paradigm.strip())
+
+        where_clause = ""
+        if filters:
+            where_clause = "WHERE " + " AND ".join(filters)
+
+        sql = f"""
+            SELECT *
+            FROM samples
+            {where_clause}
+            ORDER BY session_date DESC, session_id, trace_uid, sample_idx
+            LIMIT ?
+        """
+        values.append(int(limit))
+        return self.duckdb_store.query(sql, params=values)
+
     def list_sessions(
         self,
         *,

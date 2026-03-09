@@ -107,6 +107,19 @@ df = toolbox.query(
 )
 ```
 
+No-SQL alternative for common filters:
+
+```python
+df = toolbox.get_samples(
+    animal_id="AC04",
+    session_id="AC04_20251017",
+    day=1,
+    system="TDT",
+    paradigm="abr",
+    limit=50000,
+)
+```
+
 Query specific sessions:
 
 ```python
@@ -270,6 +283,7 @@ After ingest, the UI shows:
 - viewer data source modes:
   - last ingested session
   - parquet file path
+  - DuckDB filter mode (`animal_id`, `session_id`, `day`, `system`, `paradigm`)
   - DuckDB SQL query
 - DuckDB editor mode:
   - load session trace summary
