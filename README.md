@@ -95,6 +95,7 @@ After ingest, use ABR viewer controls for:
 - single-frequency selection
 - ipsi only vs ipsi+contra layout
 - vertical spacing slider (uV)
+- automatic side separation when both left/right stim ears are present
 
 Security defaults in this launcher:
 - binds to `localhost` only

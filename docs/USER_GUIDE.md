@@ -272,6 +272,7 @@ After ingest, the UI shows:
   - frequency dropdown (single frequency selection)
   - relation mode (`ipsi only` or `ipsi + contra`)
   - spacing slider (`uV`)
+  - separate left/right plots automatically when both stim sides are present
 
 ## 12. Current Scope (0.2.x)
 

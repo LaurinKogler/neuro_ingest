@@ -210,23 +210,65 @@ def main() -> None:
         )
 
         freq_rows = rows[np.isclose(rows["freq_hz"].astype(float), float(selected_freq))]
-        if relation_mode == "ipsi_contra" and not (freq_rows["rel_ear"].fillna("ipsi") == "contra").any():
-            st.info("No contra rows for this frequency; viewer will show ipsi only.")
+        side_values = sorted(
+            s for s in freq_rows["stim_ear"].dropna().astype(str).str.lower().unique().tolist() if s in {"left", "right"}
+        )
+        if not side_values:
+            side_values = ["all"]
 
         toolbox = NeuroAudioToolbox(
             db_path=Path(db_path),
             parquet_dir=Path(parquet_dir),
         )
-        fig = toolbox.plot(
-            rows,
-            color_by="level_db",
-            title=plot_title,
-            frequency_hz=float(selected_freq),
-            relation_mode=relation_mode,
-            spacing_uv=float(spacing_uv),
-            intensity_order="desc",
-        )
-        st.plotly_chart(fig, use_container_width=True)
+
+        if len(side_values) == 1:
+            side = side_values[0]
+            if side == "all":
+                side_rows = rows
+                side_title = plot_title
+            else:
+                side_rows = rows[rows["stim_ear"].fillna("").astype(str).str.lower() == side]
+                side_title = f"{plot_title} | {side}"
+
+            side_freq_rows = side_rows[np.isclose(side_rows["freq_hz"].astype(float), float(selected_freq))]
+            if relation_mode == "ipsi_contra" and not (side_freq_rows["rel_ear"].fillna("ipsi") == "contra").any():
+                st.info(f"No contra rows for {side}; viewer will show ipsi only.")
+
+            fig = toolbox.plot(
+                side_rows,
+                color_by="level_db",
+                title=side_title,
+                frequency_hz=float(selected_freq),
+                relation_mode=relation_mode,
+                spacing_uv=float(spacing_uv),
+                intensity_order="desc",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.subheader("Separated by Stim Ear")
+            left_col, right_col = st.columns(2)
+            for side, col in [("left", left_col), ("right", right_col)]:
+                with col:
+                    side_rows = rows[rows["stim_ear"].fillna("").astype(str).str.lower() == side]
+                    st.markdown(f"**{side.title()}**")
+                    if side_rows.empty:
+                        st.info("No rows for this side.")
+                        continue
+
+                    side_freq_rows = side_rows[np.isclose(side_rows["freq_hz"].astype(float), float(selected_freq))]
+                    if relation_mode == "ipsi_contra" and not (side_freq_rows["rel_ear"].fillna("ipsi") == "contra").any():
+                        st.info("No contra rows for this side; viewer will show ipsi only.")
+
+                    fig = toolbox.plot(
+                        side_rows,
+                        color_by="level_db",
+                        title=f"{plot_title} | {side}",
+                        frequency_hz=float(selected_freq),
+                        relation_mode=relation_mode,
+                        spacing_uv=float(spacing_uv),
+                        intensity_order="desc",
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
 
 
 if __name__ == "__main__":
