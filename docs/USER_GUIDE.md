@@ -258,9 +258,9 @@ The launcher sets safer defaults:
 
 Workflow:
 - drag one or more files into upload area
-- choose `System` (`Auto`, `TDT`, `IHS`)
+- choose `System` (`TDT` or `IHS`) explicitly
 - fill required metadata (`Animal ID`, `Session date`)
-- if resolved system is TDT, confirm ear side (`left`/`right`) before ingest
+- if selected system is TDT, confirm ear side (`left`/`right`) before ingest
 - optionally set `Day`, `Session ID`, and overwrite mode
 - set output paths (`Parquet output dir`, `DuckDB path`)
 - click **Ingest**

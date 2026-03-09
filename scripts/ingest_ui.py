@@ -11,7 +11,6 @@ from neuro_ingest.toolbox import NeuroAudioToolbox
 from neuro_ingest.ui.workflow import (
     infer_tdt_ear_from_upload_names,
     ingest_and_save,
-    resolve_system,
     stage_uploaded_files,
 )
 
@@ -30,7 +29,7 @@ def main() -> None:
 
     left, right = st.columns(2)
     with left:
-        system_choice = st.selectbox("System", ["Auto", "TDT", "IHS"], index=0)
+        system_choice = st.selectbox("System (required)", ["TDT", "IHS"], index=0)
         animal_id = st.text_input("Animal ID", value="")
         session_date = st.date_input("Session date", value=date.today())
         paradigm = st.text_input("Paradigm", value="abr")
@@ -80,7 +79,7 @@ def main() -> None:
         try:
             with TemporaryDirectory(prefix="neuro_ingest_ui_") as tmpdir:
                 staged_paths = stage_uploaded_files(uploaded_files, tmpdir)
-                system = resolve_system(system_choice, staged_paths)
+                system = system_choice
                 selected_tdt_ear = tdt_ear if system == "TDT" else None
 
                 if system == "TDT" and not confirm_tdt_ear:

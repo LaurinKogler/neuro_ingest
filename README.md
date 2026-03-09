@@ -89,6 +89,7 @@ scripts/run_ingest_ui.ps1
 ```
 
 Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
+System is explicit in UI (`TDT` or `IHS`); no system auto-detection is used.
 For TDT uploads, confirm the ear side before ingest (inference is shown from filename tokens when possible).
 After ingest, use ABR viewer controls for:
 - single-frequency selection
