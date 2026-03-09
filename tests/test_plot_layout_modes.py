@@ -78,3 +78,27 @@ def test_spacing_adds_deterministic_intensity_offsets():
 
     assert np.allclose(y1_high - y0_high, 10.0)
     assert np.allclose(y1_low - y0_low, 0.0)
+
+
+def test_amplitude_scale_multiplies_waveform_values():
+    rows = pd.DataFrame(
+        [
+            {"trace_uid": "t1", "freq_hz": 8000.0, "level_db": 80.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.5},
+            {"trace_uid": "t1", "freq_hz": 8000.0, "level_db": 80.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": -2.0},
+        ]
+    )
+    fig1 = PlotService().plot_abr(rows, frequency_hz=8000.0, amplitude_scale=1.0)
+    fig2 = PlotService().plot_abr(rows, frequency_hz=8000.0, amplitude_scale=3.0)
+
+    y1 = np.array(fig1.data[0].y, dtype=float)
+    y2 = np.array(fig2.data[0].y, dtype=float)
+    assert np.allclose(y2, y1 * 3.0)
+
+
+def test_plot_uses_taller_default_height_and_allows_override():
+    rows = _tdt_rows()
+    fig_default = PlotService().plot_abr(rows, frequency_hz=0.0)
+    assert int(fig_default.layout.height) >= 700
+
+    fig_override = PlotService().plot_abr(rows, frequency_hz=0.0, figure_height_px=920)
+    assert int(fig_override.layout.height) == 920

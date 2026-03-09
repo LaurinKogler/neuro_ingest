@@ -71,33 +71,35 @@ function Resolve-CondaCommand {
 $pythonExe = Resolve-PythonCommand
 $condaExe = Resolve-CondaCommand
 
-$cmd = @("run", "-n", "neuro-ingest", "pytest")
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$testRuntimeDir = Join-Path $repoRoot "test_runtime"
+$tmpDir = Join-Path $testRuntimeDir "tmp"
+
+New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+
+# Keep pytest temp files in a known writable project-local location.
+$env:TMP = $tmpDir
+$env:TEMP = $tmpDir
+
+$pytestCommonArgs = @("-p", "no:cacheprovider", "-p", "no:tmpdir")
 if ($PytestArgs.Count -eq 0) {
-    $cmd += "-q"
+    $pytestCommonArgs += "-q"
 } else {
-    $cmd += $PytestArgs
+    $pytestCommonArgs += $PytestArgs
 }
 
 if ($pythonExe) {
-    $pythonCmd = @("-m", "pytest")
-    if ($PytestArgs.Count -eq 0) {
-        $pythonCmd += "-q"
-    } else {
-        $pythonCmd += $PytestArgs
-    }
+    $pythonCmd = @("-m", "pytest") + $pytestCommonArgs
     & $pythonExe @pythonCmd
     $exitCode = $LASTEXITCODE
 } elseif ($condaExe) {
+    $cmd = @("run", "-n", "neuro-ingest", "pytest") + $pytestCommonArgs
     & $condaExe @cmd
     $exitCode = $LASTEXITCODE
 } else {
     Write-Host "No Python/Conda override found. Set NEURO_INGEST_PYTHON_EXE or NEURO_INGEST_ENV_PREFIX or NEURO_INGEST_CONDA_EXE. Falling back to pytest from active shell."
     try {
-        if ($PytestArgs.Count -eq 0) {
-            pytest -q
-        } else {
-            pytest @PytestArgs
-        }
+        pytest @pytestCommonArgs
         $exitCode = $LASTEXITCODE
     } catch {
         Write-Host "Could not run pytest from active shell either."

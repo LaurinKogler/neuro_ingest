@@ -5,12 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
 from neuro_ingest.ui.workflow import (
-    ingest_and_save,
+    combine_sessions,
     stage_uploaded_files,
 )
 
@@ -91,7 +90,7 @@ def main() -> None:
                 parquet_dir=Path(parquet_dir),
             )
             sessions = []
-            writes = []
+            write = None
 
             with TemporaryDirectory(prefix="neuro_ingest_ui_") as tmpdir:
                 if system_choice == "TDT":
@@ -100,71 +99,65 @@ def main() -> None:
                     if tdt_left_files:
                         left_dir = Path(tmpdir) / "left"
                         stage_uploaded_files(tdt_left_files, left_dir)
-                        left_session, left_write = ingest_and_save(
-                            toolbox=toolbox,
+                        left_session = toolbox.ingest(
                             system="TDT",
-                            input_dir=left_dir,
+                            input_path=left_dir,
                             animal_id=animal_id.strip(),
                             session_date=session_date,
                             paradigm=paradigm.strip() or "abr",
                             day=day,
-                            session_id=f"{base_session_id}_L",
-                            overwrite=overwrite,
+                            session_id=base_session_id,
                             tdt_ear="left",
                         )
                         sessions.append(left_session)
-                        writes.append(left_write)
 
                     if tdt_right_files:
                         right_dir = Path(tmpdir) / "right"
                         stage_uploaded_files(tdt_right_files, right_dir)
-                        right_session, right_write = ingest_and_save(
-                            toolbox=toolbox,
+                        right_session = toolbox.ingest(
                             system="TDT",
-                            input_dir=right_dir,
+                            input_path=right_dir,
                             animal_id=animal_id.strip(),
                             session_date=session_date,
                             paradigm=paradigm.strip() or "abr",
                             day=day,
-                            session_id=f"{base_session_id}_R",
-                            overwrite=overwrite,
+                            session_id=base_session_id,
                             tdt_ear="right",
                         )
                         sessions.append(right_session)
-                        writes.append(right_write)
+                    merged_session = combine_sessions(sessions)
+                    write = toolbox.save(merged_session, overwrite=overwrite)
                 else:
                     ihs_dir = Path(tmpdir) / "ihs"
                     stage_uploaded_files(ihs_files, ihs_dir)
-                    ihs_session, ihs_write = ingest_and_save(
-                        toolbox=toolbox,
+                    ihs_session = toolbox.ingest(
                         system="IHS",
-                        input_dir=ihs_dir,
+                        input_path=ihs_dir,
                         animal_id=animal_id.strip(),
                         session_date=session_date,
                         paradigm=paradigm.strip() or "abr",
                         day=day,
                         session_id=session_id.strip() or None,
-                        overwrite=overwrite,
                         tdt_ear=None,
                     )
                     sessions.append(ihs_session)
-                    writes.append(ihs_write)
+                    merged_session = ihs_session
+                    write = toolbox.save(merged_session, overwrite=overwrite)
 
-            merged_rows = pd.concat([s.rows for s in sessions], ignore_index=True)
-            merged_session_ids = ", ".join(s.session_id for s in sessions)
-            st.session_state["last_session_rows"] = merged_rows
-            st.session_state["last_session_id"] = merged_session_ids
-            st.session_state["last_session_title"] = f"{merged_session_ids} ABR"
+            if write is None:
+                raise RuntimeError("Ingest completed without any writable session.")
+
+            st.session_state["last_session_rows"] = merged_session.rows
+            st.session_state["last_session_id"] = merged_session.session_id
+            st.session_state["last_session_title"] = f"{merged_session.session_id} ABR"
 
             st.success("Ingest completed.")
             m1, m2, m3 = st.columns(3)
             m1.metric("System", system_choice)
-            m2.metric("Sessions Written", len(sessions))
-            m3.metric("Rows Written", int(sum(w.rows_written for w in writes)))
-            for idx, write in enumerate(writes, start=1):
-                st.write(f"Write {idx} Parquet: `{write.parquet_path}`")
-            if writes:
-                st.write(f"DuckDB: `{writes[0].db_path}`")
+            m2.metric("Input Batches", len(sessions))
+            m3.metric("Rows Written", int(write.rows_written))
+            st.write(f"Parquet: `{write.parquet_path}`")
+            st.write(f"DuckDB: `{write.db_path}`")
         except Exception as exc:
             st.error(f"Ingest failed: {exc}")
             st.exception(exc)
@@ -208,6 +201,14 @@ def main() -> None:
             value=0.0,
             step=float(step),
         )
+        amplitude_scale = st.slider(
+            "Amplitude scale (x)",
+            min_value=1.0,
+            max_value=10.0,
+            value=1.0,
+            step=0.1,
+            help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
+        )
 
         freq_rows = rows[np.isclose(rows["freq_hz"].astype(float), float(selected_freq))]
         side_values = sorted(
@@ -241,6 +242,7 @@ def main() -> None:
                 frequency_hz=float(selected_freq),
                 relation_mode=relation_mode,
                 spacing_uv=float(spacing_uv),
+                amplitude_scale=float(amplitude_scale),
                 intensity_order="desc",
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -266,6 +268,7 @@ def main() -> None:
                         frequency_hz=float(selected_freq),
                         relation_mode=relation_mode,
                         spacing_uv=float(spacing_uv),
+                        amplitude_scale=float(amplitude_scale),
                         intensity_order="desc",
                     )
                     st.plotly_chart(fig, use_container_width=True)

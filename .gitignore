@@ -15,6 +15,7 @@ env/
 data/
 raw/
 normalized/
+test_runtime/
 *.parquet
 !tests/data/
 !tests/data/**

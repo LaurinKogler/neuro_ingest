@@ -29,7 +29,9 @@ class PlotService:
         frequency_hz: float | None = None,
         relation_mode: RelationMode = "ipsi",
         spacing_uv: float = 0.0,
+        amplitude_scale: float = 1.0,
         intensity_order: IntensityOrder = "desc",
+        figure_height_px: int | None = None,
     ) -> go.Figure:
         rows = self._to_dataframe(data)
         rows = self._apply_filters(rows, filters=filters or {})
@@ -43,6 +45,10 @@ class PlotService:
             raise ValueError("No rows available for plotting after filters were applied.")
         if spacing_uv < 0:
             raise ValueError("spacing_uv must be >= 0.")
+        if amplitude_scale <= 0:
+            raise ValueError("amplitude_scale must be > 0.")
+        if figure_height_px is not None and figure_height_px <= 0:
+            raise ValueError("figure_height_px must be > 0 when provided.")
 
         selected_freq = self._resolve_frequency(rows, frequency_hz=frequency_hz)
         freq_rows = rows[np.isclose(rows["freq_hz"].astype(float), float(selected_freq))]
@@ -71,6 +77,7 @@ class PlotService:
                 color_by=color_by,
                 color_map=color_map,
                 offsets=offsets,
+                amplitude_scale=amplitude_scale,
                 subplot=None,
             )
             if relation_mode == "ipsi_contra":
@@ -91,6 +98,10 @@ class PlotService:
                 legend_title="Intensity (dB)",
                 hovermode="closest",
                 uirevision="abr-clinical",
+                height=self._resolve_figure_height(
+                    trace_count=int(plot_rows[group_by].nunique()),
+                    figure_height_px=figure_height_px,
+                ),
             )
             fig.update_xaxes(fixedrange=True)
             return fig
@@ -106,6 +117,7 @@ class PlotService:
             color_by=color_by,
             color_map=color_map,
             offsets=offsets,
+            amplitude_scale=amplitude_scale,
             subplot=(1, 1),
         )
         self._add_traces(
@@ -115,6 +127,7 @@ class PlotService:
             color_by=color_by,
             color_map=color_map,
             offsets=offsets,
+            amplitude_scale=amplitude_scale,
             subplot=(1, 2),
         )
         fig.update_layout(
@@ -123,6 +136,13 @@ class PlotService:
             legend_title="Intensity (dB)",
             hovermode="closest",
             uirevision="abr-clinical",
+            height=self._resolve_figure_height(
+                trace_count=max(
+                    int(ipsi_rows[group_by].nunique()),
+                    int(contra_rows[group_by].nunique()),
+                ),
+                figure_height_px=figure_height_px,
+            ),
         )
         fig.update_xaxes(title_text="Time (ms)", fixedrange=True, row=1, col=1)
         fig.update_xaxes(title_text="Time (ms)", fixedrange=True, row=1, col=2)
@@ -210,6 +230,7 @@ class PlotService:
         color_by: str,
         color_map: dict[Any, str],
         offsets: dict[Any, float],
+        amplitude_scale: float,
         subplot: tuple[int, int] | None,
     ) -> None:
         if rows.empty:
@@ -221,7 +242,7 @@ class PlotService:
             chunk = chunk.sort_values("sample_idx")
             level = float(chunk["level_db"].iloc[0])
             offset = offsets.get(trace_id, 0.0)
-            y = chunk["amplitude_uv"] + offset
+            y = (chunk["amplitude_uv"] * amplitude_scale) + offset
             color_key = chunk[color_by].iloc[0] if color_by in chunk.columns else level
             line_color = color_map.get(color_key, "#1f77b4")
             showlegend = level not in shown_levels
@@ -247,3 +268,10 @@ class PlotService:
                 fig.add_trace(trace)
             else:
                 fig.add_trace(trace, row=subplot[0], col=subplot[1])
+
+    @staticmethod
+    def _resolve_figure_height(*, trace_count: int, figure_height_px: int | None) -> int:
+        if figure_height_px is not None:
+            return int(figure_height_px)
+        auto_height = 420 + max(1, int(trace_count)) * 24
+        return int(max(700, min(1800, auto_height)))

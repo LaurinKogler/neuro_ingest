@@ -76,7 +76,9 @@ class NeuroAudioToolbox:
         frequency_hz: float | None = None,
         relation_mode: Literal["ipsi", "ipsi_contra"] = "ipsi",
         spacing_uv: float = 0.0,
+        amplitude_scale: float = 1.0,
         intensity_order: Literal["desc", "asc"] = "desc",
+        figure_height_px: int | None = None,
     ) -> go.Figure:
         return self.plot_service.plot_abr(
             data,
@@ -87,5 +89,7 @@ class NeuroAudioToolbox:
             frequency_hz=frequency_hz,
             relation_mode=relation_mode,
             spacing_uv=spacing_uv,
+            amplitude_scale=amplitude_scale,
             intensity_order=intensity_order,
+            figure_height_px=figure_height_px,
         )
