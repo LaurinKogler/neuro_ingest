@@ -474,7 +474,7 @@ def main() -> None:
                 "Trace spacing (uV)",
                 min_value=0.0,
                 max_value=float(max_spacing),
-                value=0.0,
+                value=max_spacing,
                 step=float(step),
             )
             amplitude_scale = amplitude_scale_log_slider(
