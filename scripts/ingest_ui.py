@@ -525,7 +525,7 @@ def main() -> None:
                         f"{side.title()} trace spacing (uV)",
                         min_value=0.0,
                         max_value=float(max_spacing),
-                        value=0.0,
+                        value=float(max_spacing),
                         step=float(step),
                         key=f"{side}_trace_spacing_uv",
                     )
