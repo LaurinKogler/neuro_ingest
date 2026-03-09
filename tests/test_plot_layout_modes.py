@@ -121,3 +121,23 @@ def test_legend_order_follows_intensity_order():
     fig_asc = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="asc")
     asc_legend_names = [trace.name for trace in fig_asc.data if trace.showlegend]
     assert asc_legend_names == ["70 dB", "90 dB"]
+
+
+def test_legend_order_stays_sorted_when_levels_first_appear_in_contra_panel():
+    rows = pd.DataFrame(
+        [
+            {"trace_uid": "ipsi_70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "ipsi_70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 2.0},
+            {"trace_uid": "contra_90", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "contra", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "contra_90", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "contra", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 2.0},
+        ]
+    )
+
+    fig = PlotService().plot_abr(
+        rows,
+        frequency_hz=4000.0,
+        relation_mode="ipsi_contra",
+        intensity_order="desc",
+    )
+    legend_names = [trace.name for trace in fig.data if trace.showlegend]
+    assert legend_names == ["90 dB", "70 dB"]

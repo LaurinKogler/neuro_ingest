@@ -57,6 +57,7 @@ class PlotService:
 
         color_map = self._build_color_map(freq_rows, color_by=color_by)
         offsets = self._build_offsets(freq_rows, group_by=group_by, spacing_uv=spacing_uv, intensity_order=intensity_order)
+        legend_ranks = self._build_legend_ranks(freq_rows, group_by=group_by, intensity_order=intensity_order)
 
         effective_mode = relation_mode
         if relation_mode == "ipsi_contra":
@@ -77,6 +78,7 @@ class PlotService:
                 color_by=color_by,
                 color_map=color_map,
                 offsets=offsets,
+                legend_ranks=legend_ranks,
                 amplitude_scale=amplitude_scale,
                 intensity_order=intensity_order,
                 shown_levels=set(),
@@ -105,6 +107,7 @@ class PlotService:
                     figure_height_px=figure_height_px,
                 ),
             )
+            self._reorder_traces_for_legend(fig)
             fig.update_xaxes(fixedrange=True)
             return fig
 
@@ -120,6 +123,7 @@ class PlotService:
             color_by=color_by,
             color_map=color_map,
             offsets=offsets,
+            legend_ranks=legend_ranks,
             amplitude_scale=amplitude_scale,
             intensity_order=intensity_order,
             shown_levels=shared_shown_levels,
@@ -132,6 +136,7 @@ class PlotService:
             color_by=color_by,
             color_map=color_map,
             offsets=offsets,
+            legend_ranks=legend_ranks,
             amplitude_scale=amplitude_scale,
             intensity_order=intensity_order,
             shown_levels=shared_shown_levels,
@@ -154,6 +159,7 @@ class PlotService:
         fig.update_xaxes(title_text="Time (ms)", fixedrange=True, row=1, col=1)
         fig.update_xaxes(title_text="Time (ms)", fixedrange=True, row=1, col=2)
         fig.update_yaxes(title_text="Amplitude (uV)", row=1, col=1)
+        self._reorder_traces_for_legend(fig)
         return fig
 
     @staticmethod
@@ -228,6 +234,17 @@ class PlotService:
             offsets[trace_id] = (max_rank - r) * spacing_uv
         return offsets
 
+    @staticmethod
+    def _build_legend_ranks(
+        rows: pd.DataFrame,
+        *,
+        group_by: str,
+        intensity_order: IntensityOrder,
+    ) -> dict[float, int]:
+        by_trace = rows.groupby(group_by, sort=False)["level_db"].first()
+        levels = sorted(by_trace.astype(float).unique(), reverse=(intensity_order == "desc"))
+        return {float(level): idx for idx, level in enumerate(levels)}
+
     def _add_traces(
         self,
         *,
@@ -237,6 +254,7 @@ class PlotService:
         color_by: str,
         color_map: dict[Any, str],
         offsets: dict[Any, float],
+        legend_ranks: dict[float, int],
         amplitude_scale: float,
         intensity_order: IntensityOrder,
         shown_levels: set[float],
@@ -272,6 +290,7 @@ class PlotService:
                 mode="lines",
                 name=f"{level:g} dB",
                 legendgroup=f"level-{level:g}",
+                legendrank=legend_ranks.get(float(level), len(legend_ranks) + 1),
                 showlegend=showlegend,
                 line={"color": line_color, "width": 1.4},
                 hovertemplate=(
@@ -293,3 +312,16 @@ class PlotService:
             return int(figure_height_px)
         auto_height = 420 + max(1, int(trace_count)) * 24
         return int(max(700, min(1800, auto_height)))
+
+    @staticmethod
+    def _reorder_traces_for_legend(fig: go.Figure) -> None:
+        indexed = list(enumerate(fig.data))
+        ordered = sorted(
+            indexed,
+            key=lambda item: (
+                getattr(item[1], "legendrank", 10**9),
+                0 if bool(getattr(item[1], "showlegend", False)) else 1,
+                item[0],
+            ),
+        )
+        fig.data = tuple(trace for _, trace in ordered)
