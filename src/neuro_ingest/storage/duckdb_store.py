@@ -10,6 +10,23 @@ from neuro_ingest.data.models import SessionData
 
 
 class DuckDBStore:
+    _TEXT_SAMPLE_COLUMNS = {
+        "animal_id",
+        "session_id",
+        "system",
+        "paradigm",
+        "stim_ear",
+        "rec_ear",
+        "rel_ear",
+        "stimulus_label",
+        "file_uid",
+        "source_record_id",
+        "trace_uid",
+        "sample_uid",
+        "source_file",
+        "schema_version",
+    }
+
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,3 +174,22 @@ class DuckDBStore:
             raise ValueError(
                 "Incoming sample schema does not match existing `samples` table schema."
             )
+        DuckDBStore._migrate_legacy_text_columns(conn, table_info)
+
+    @staticmethod
+    def _migrate_legacy_text_columns(
+        conn: duckdb.DuckDBPyConnection,
+        table_info: list[tuple],
+    ) -> None:
+        # Older DB files may have inferred INTEGER for all-null text columns
+        # (e.g. stim_ear/rec_ear/rel_ear). Upgrade them to VARCHAR in place.
+        for col in table_info:
+            column_name = col[1]
+            column_type = str(col[2]).upper()
+            if column_name not in DuckDBStore._TEXT_SAMPLE_COLUMNS:
+                continue
+            if column_type in {"VARCHAR", "TEXT"}:
+                continue
+
+            quoted = column_name.replace('"', '""')
+            conn.execute(f'ALTER TABLE samples ALTER COLUMN "{quoted}" TYPE VARCHAR')

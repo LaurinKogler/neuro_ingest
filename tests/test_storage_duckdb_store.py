@@ -1,6 +1,7 @@
 from datetime import date
 from pathlib import Path
 
+import duckdb
 import pytest
 
 from neuro_ingest.data.models import SessionData
@@ -71,3 +72,51 @@ def test_duckdb_store_schema_mismatch_rolls_back(tmp_path: Path):
 
     sessions = store.list_sessions()
     assert sessions["session_id"].tolist() == ["AC04_20251017"]
+
+
+def test_duckdb_store_migrates_legacy_integer_text_columns(tmp_path: Path):
+    db_path = tmp_path / "legacy.duckdb"
+    store = DuckDBStore(db_path=db_path)
+
+    base_rows = TDTIngestor().ingest(
+        paths=[Path("tests/data/AC04_ClickABR_right_20251017.txt")],
+        animal_id="AC04",
+        session_date=date(2025, 10, 17),
+        paradigm="abr",
+        day=0,
+        session_id="AC04_20251017",
+    )
+
+    legacy_rows = base_rows.copy()
+    legacy_rows["stim_ear"] = None
+    legacy_rows["rec_ear"] = None
+    legacy_rows["rel_ear"] = None
+    legacy_rows["stimulus_label"] = None
+
+    # Simulate old schema inference from all-null text columns.
+    with duckdb.connect(str(db_path)) as con:
+        con.register("incoming_samples", legacy_rows)
+        con.execute("CREATE TABLE samples AS SELECT * FROM incoming_samples LIMIT 0")
+        con.unregister("incoming_samples")
+
+    rows2 = base_rows.copy()
+    rows2["session_id"] = "AC04_20251018"
+    rows2["stim_ear"] = "right"
+    rows2["rec_ear"] = "right"
+    rows2["rel_ear"] = "ipsi"
+    session2 = SessionData(
+        session_id="AC04_20251018",
+        system="TDT",
+        animal_id="AC04",
+        session_date=date(2025, 10, 17),
+        paradigm="abr",
+        rows=rows2,
+    )
+
+    store.append_session(session2)
+
+    info = store.query("PRAGMA table_info('samples')")
+    types = dict(zip(info["name"], info["type"]))
+    assert types["stim_ear"] == "VARCHAR"
+    assert types["rec_ear"] == "VARCHAR"
+    assert types["rel_ear"] == "VARCHAR"
