@@ -176,7 +176,7 @@ def main() -> None:
     )
     default_parquet_path = st.session_state.get("last_parquet_path", "")
     default_db_path = st.session_state.get("last_db_path", db_path)
-    query_sql = "SELECT * FROM samples ORDER BY session_date DESC, session_id DESC LIMIT 50000"
+    query_sql = "SELECT * FROM samples ORDER BY session_date DESC, session_id DESC LIMIT 100000"
 
     with st.expander("Load Viewer Data", expanded=False):
         if source_mode == "Parquet file":
@@ -201,8 +201,8 @@ def main() -> None:
                         "row limit",
                         min_value=100,
                         max_value=500000,
-                        value=50000,
-                        step=100,
+                        value=100000,
+                        step=1000,
                     )
                 )
         elif source_mode == "DuckDB query":
@@ -455,6 +455,20 @@ def main() -> None:
             parquet_dir=Path(parquet_dir),
         )
 
+        def amplitude_scale_log_slider(*, label: str, key: str) -> float:
+            log10_scale = st.slider(
+                f"{label} (log10)",
+                min_value=-1.0,
+                max_value=1.0,
+                value=0.0,
+                step=0.01,
+                key=key,
+                help="Log-scaled amplitude multiplier from x0.1 to x10.",
+            )
+            scale_value = float(10 ** float(log10_scale))
+            st.caption(f"{label}: x{scale_value:.2f}")
+            return scale_value
+
         if len(side_values) == 1:
             spacing_uv = st.slider(
                 "Trace spacing (uV)",
@@ -463,13 +477,9 @@ def main() -> None:
                 value=0.0,
                 step=float(step),
             )
-            amplitude_scale = st.slider(
-                "Amplitude scale (x)",
-                min_value=1.0,
-                max_value=10.0,
-                value=1.0,
-                step=0.1,
-                help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
+            amplitude_scale = amplitude_scale_log_slider(
+                label="Amplitude scale",
+                key="global_amplitude_scale_log10",
             )
 
             side = side_values[0]
@@ -519,14 +529,9 @@ def main() -> None:
                         step=float(step),
                         key=f"{side}_trace_spacing_uv",
                     )
-                    side_amplitude_scale = st.slider(
-                        f"{side.title()} amplitude scale (x)",
-                        min_value=1.0,
-                        max_value=10.0,
-                        value=1.0,
-                        step=0.1,
-                        key=f"{side}_amplitude_scale",
-                        help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
+                    side_amplitude_scale = amplitude_scale_log_slider(
+                        label=f"{side.title()} amplitude scale",
+                        key=f"{side}_amplitude_scale_log10",
                     )
 
                     fig = toolbox.plot(
