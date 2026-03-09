@@ -16,9 +16,16 @@ data/
 raw/
 normalized/
 test_runtime/
+test_output/
 *.parquet
 !tests/data/
 !tests/data/**
+
+# Local test/runtime temp artifacts
+.pytest_cache/
+.pytest_tmp/
+.tmp_pytest_ui/
+tmp_mode_test/
 
 # OS
 .DS_Store
