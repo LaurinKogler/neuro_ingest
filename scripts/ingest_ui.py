@@ -331,7 +331,7 @@ def main() -> None:
             else:
                 st.caption(f"Loaded {len(trace_df)} traces from session `{selected_session}`.")
                 with st.expander("Trace summary preview", expanded=False):
-                    st.dataframe(trace_df.head(500), use_container_width=True)
+                    st.dataframe(trace_df.head(500), width='stretch')
 
                 label_to_trace: dict[str, str] = {}
                 trace_labels: list[str] = []
@@ -415,7 +415,7 @@ def main() -> None:
         plot_title = st.session_state.get("viewer_title", "ABR Traces")
 
         with st.expander("Preview rows", expanded=False):
-            st.dataframe(rows.head(300), use_container_width=True)
+            st.dataframe(rows.head(300), width='stretch')
 
         st.subheader("ABR Viewer Controls")
         freq_values = sorted(float(v) for v in rows["freq_hz"].dropna().unique())
@@ -442,21 +442,6 @@ def main() -> None:
             p95 = 1.0
         max_spacing = max(1.0, 2.0 * p95)
         step = max(0.01, max_spacing / 100.0)
-        spacing_uv = st.slider(
-            "Trace spacing (uV)",
-            min_value=0.0,
-            max_value=float(max_spacing),
-            value=0.0,
-            step=float(step),
-        )
-        amplitude_scale = st.slider(
-            "Amplitude scale (x)",
-            min_value=1.0,
-            max_value=10.0,
-            value=1.0,
-            step=0.1,
-            help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
-        )
 
         freq_rows = rows[np.isclose(rows["freq_hz"].astype(float), float(selected_freq))]
         side_values = sorted(
@@ -471,6 +456,22 @@ def main() -> None:
         )
 
         if len(side_values) == 1:
+            spacing_uv = st.slider(
+                "Trace spacing (uV)",
+                min_value=0.0,
+                max_value=float(max_spacing),
+                value=0.0,
+                step=float(step),
+            )
+            amplitude_scale = st.slider(
+                "Amplitude scale (x)",
+                min_value=1.0,
+                max_value=10.0,
+                value=1.0,
+                step=0.1,
+                help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
+            )
+
             side = side_values[0]
             if side == "all":
                 side_rows = rows
@@ -493,9 +494,10 @@ def main() -> None:
                 amplitude_scale=float(amplitude_scale),
                 intensity_order="desc",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.subheader("Separated by Stim Ear")
+            st.caption("Left and right plots have independent spacing and amplitude controls.")
             left_col, right_col = st.columns(2)
             for side, col in [("left", left_col), ("right", right_col)]:
                 with col:
@@ -509,17 +511,35 @@ def main() -> None:
                     if relation_mode == "ipsi_contra" and not (side_freq_rows["rel_ear"].fillna("ipsi") == "contra").any():
                         st.info("No contra rows for this side; viewer will show ipsi only.")
 
+                    side_spacing_uv = st.slider(
+                        f"{side.title()} trace spacing (uV)",
+                        min_value=0.0,
+                        max_value=float(max_spacing),
+                        value=0.0,
+                        step=float(step),
+                        key=f"{side}_trace_spacing_uv",
+                    )
+                    side_amplitude_scale = st.slider(
+                        f"{side.title()} amplitude scale (x)",
+                        min_value=1.0,
+                        max_value=10.0,
+                        value=1.0,
+                        step=0.1,
+                        key=f"{side}_amplitude_scale",
+                        help="Multiplies waveform amplitude for display only. Stored data remains unchanged.",
+                    )
+
                     fig = toolbox.plot(
                         side_rows,
                         color_by="level_db",
                         title=f"{plot_title} | {side}",
                         frequency_hz=float(selected_freq),
                         relation_mode=relation_mode,
-                        spacing_uv=float(spacing_uv),
-                        amplitude_scale=float(amplitude_scale),
+                        spacing_uv=float(side_spacing_uv),
+                        amplitude_scale=float(side_amplitude_scale),
                         intensity_order="desc",
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
 
 if __name__ == "__main__":
