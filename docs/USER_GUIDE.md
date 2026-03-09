@@ -257,10 +257,10 @@ The launcher sets safer defaults:
 - `--browser.gatherUsageStats false` (no Streamlit telemetry)
 
 Workflow:
-- drag one or more files into upload area
 - choose `System` (`TDT` or `IHS`) explicitly
+- if `TDT`: upload left files and right files in separate drop zones
+- if `IHS`: upload files in the IHS drop zone
 - fill required metadata (`Animal ID`, `Session date`)
-- if selected system is TDT, confirm ear side (`left`/`right`) before ingest
 - optionally set `Day`, `Session ID`, and overwrite mode
 - set output paths (`Parquet output dir`, `DuckDB path`)
 - click **Ingest**

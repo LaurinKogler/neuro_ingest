@@ -5,11 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
 from neuro_ingest.ui.workflow import (
-    infer_tdt_ear_from_upload_names,
     ingest_and_save,
     stage_uploaded_files,
 )
@@ -19,13 +19,6 @@ def main() -> None:
     st.set_page_config(page_title="Neuro Ingest UI", layout="wide")
     st.title("Neuro-Audio Drag-and-Drop Ingest")
     st.caption("Upload one or more files, fill metadata, then ingest to Parquet + DuckDB.")
-
-    uploaded_files = st.file_uploader(
-        "Drag and drop acquisition files",
-        accept_multiple_files=True,
-        type=["txt", "asc", "csv"],
-    )
-    inferred_tdt_ear = infer_tdt_ear_from_upload_names(uploaded_files) if uploaded_files else None
 
     left, right = st.columns(2)
     with left:
@@ -41,32 +34,48 @@ def main() -> None:
         db_path = st.text_input("DuckDB path", value="normalized/neuro_audio.duckdb")
         overwrite = st.checkbox("Overwrite existing session", value=False)
 
-    with st.expander("TDT ear metadata (required for TDT)", expanded=True):
-        if inferred_tdt_ear is None:
-            st.info("Filename inference: no unambiguous TDT ear found.")
-            default_idx = 0
-        else:
-            st.success(f"Filename inference suggests TDT ear: {inferred_tdt_ear}")
-            default_idx = 1 if inferred_tdt_ear == "right" else 0
-
-        tdt_ear = st.radio(
-            "Confirm TDT ear side",
-            options=["left", "right"],
-            index=default_idx,
-            horizontal=True,
-        )
-        confirm_tdt_ear = st.checkbox(
-            "I confirm this TDT ear selection is correct",
-            value=False,
+    tdt_left_files = []
+    tdt_right_files = []
+    ihs_files = []
+    if system_choice == "TDT":
+        st.subheader("TDT Upload")
+        st.caption("Drop left and right ear files separately. Each side is ingested in one batch.")
+        left_uploader, right_uploader = st.columns(2)
+        with left_uploader:
+            tdt_left_files = st.file_uploader(
+                "Left ear files",
+                accept_multiple_files=True,
+                type=["txt", "asc", "csv"],
+                key="tdt_left_files",
+            )
+        with right_uploader:
+            tdt_right_files = st.file_uploader(
+                "Right ear files",
+                accept_multiple_files=True,
+                type=["txt", "asc", "csv"],
+                key="tdt_right_files",
+            )
+    else:
+        st.subheader("IHS Upload")
+        ihs_files = st.file_uploader(
+            "IHS acquisition files",
+            accept_multiple_files=True,
+            type=["txt", "asc", "csv"],
+            key="ihs_files",
         )
 
     if st.button("Ingest", type="primary"):
-        if not uploaded_files:
-            st.error("Upload at least one file.")
-            return
         if not animal_id.strip():
             st.error("Animal ID is required.")
             return
+        if system_choice == "TDT":
+            if not tdt_left_files and not tdt_right_files:
+                st.error("Upload at least one TDT file (left or right).")
+                return
+        else:
+            if not ihs_files:
+                st.error("Upload at least one IHS file.")
+                return
 
         day = None
         if day_text.strip():
@@ -77,44 +86,85 @@ def main() -> None:
                 return
 
         try:
+            toolbox = NeuroAudioToolbox(
+                db_path=Path(db_path),
+                parquet_dir=Path(parquet_dir),
+            )
+            sessions = []
+            writes = []
+
             with TemporaryDirectory(prefix="neuro_ingest_ui_") as tmpdir:
-                staged_paths = stage_uploaded_files(uploaded_files, tmpdir)
-                system = system_choice
-                selected_tdt_ear = tdt_ear if system == "TDT" else None
+                if system_choice == "TDT":
+                    base_session_id = session_id.strip() or f"{animal_id.strip()}_{session_date:%Y%m%d}"
 
-                if system == "TDT" and not confirm_tdt_ear:
-                    st.error("TDT ingest requires explicit ear confirmation before saving.")
-                    return
+                    if tdt_left_files:
+                        left_dir = Path(tmpdir) / "left"
+                        stage_uploaded_files(tdt_left_files, left_dir)
+                        left_session, left_write = ingest_and_save(
+                            toolbox=toolbox,
+                            system="TDT",
+                            input_dir=left_dir,
+                            animal_id=animal_id.strip(),
+                            session_date=session_date,
+                            paradigm=paradigm.strip() or "abr",
+                            day=day,
+                            session_id=f"{base_session_id}_L",
+                            overwrite=overwrite,
+                            tdt_ear="left",
+                        )
+                        sessions.append(left_session)
+                        writes.append(left_write)
 
-                toolbox = NeuroAudioToolbox(
-                    db_path=Path(db_path),
-                    parquet_dir=Path(parquet_dir),
-                )
+                    if tdt_right_files:
+                        right_dir = Path(tmpdir) / "right"
+                        stage_uploaded_files(tdt_right_files, right_dir)
+                        right_session, right_write = ingest_and_save(
+                            toolbox=toolbox,
+                            system="TDT",
+                            input_dir=right_dir,
+                            animal_id=animal_id.strip(),
+                            session_date=session_date,
+                            paradigm=paradigm.strip() or "abr",
+                            day=day,
+                            session_id=f"{base_session_id}_R",
+                            overwrite=overwrite,
+                            tdt_ear="right",
+                        )
+                        sessions.append(right_session)
+                        writes.append(right_write)
+                else:
+                    ihs_dir = Path(tmpdir) / "ihs"
+                    stage_uploaded_files(ihs_files, ihs_dir)
+                    ihs_session, ihs_write = ingest_and_save(
+                        toolbox=toolbox,
+                        system="IHS",
+                        input_dir=ihs_dir,
+                        animal_id=animal_id.strip(),
+                        session_date=session_date,
+                        paradigm=paradigm.strip() or "abr",
+                        day=day,
+                        session_id=session_id.strip() or None,
+                        overwrite=overwrite,
+                        tdt_ear=None,
+                    )
+                    sessions.append(ihs_session)
+                    writes.append(ihs_write)
 
-                session, result = ingest_and_save(
-                    toolbox=toolbox,
-                    system=system,
-                    input_dir=Path(tmpdir),
-                    animal_id=animal_id.strip(),
-                    session_date=session_date,
-                    paradigm=paradigm.strip() or "abr",
-                    day=day,
-                    session_id=session_id.strip() or None,
-                    overwrite=overwrite,
-                    tdt_ear=selected_tdt_ear,
-                )
-
-            st.session_state["last_session_rows"] = session.rows
-            st.session_state["last_session_id"] = session.session_id
-            st.session_state["last_session_title"] = f"{session.session_id} ABR"
+            merged_rows = pd.concat([s.rows for s in sessions], ignore_index=True)
+            merged_session_ids = ", ".join(s.session_id for s in sessions)
+            st.session_state["last_session_rows"] = merged_rows
+            st.session_state["last_session_id"] = merged_session_ids
+            st.session_state["last_session_title"] = f"{merged_session_ids} ABR"
 
             st.success("Ingest completed.")
             m1, m2, m3 = st.columns(3)
-            m1.metric("System", session.system)
-            m2.metric("Session ID", session.session_id)
-            m3.metric("Rows Written", int(result.rows_written))
-            st.write(f"Parquet: `{result.parquet_path}`")
-            st.write(f"DuckDB: `{result.db_path}`")
+            m1.metric("System", system_choice)
+            m2.metric("Sessions Written", len(sessions))
+            m3.metric("Rows Written", int(sum(w.rows_written for w in writes)))
+            for idx, write in enumerate(writes, start=1):
+                st.write(f"Write {idx} Parquet: `{write.parquet_path}`")
+            if writes:
+                st.write(f"DuckDB: `{writes[0].db_path}`")
         except Exception as exc:
             st.error(f"Ingest failed: {exc}")
             st.exception(exc)
