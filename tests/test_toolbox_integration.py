@@ -48,3 +48,14 @@ def test_toolbox_end_to_end(tmp_path: Path):
         spacing_uv=5.0,
     )
     assert isinstance(fig2, go.Figure)
+
+    trace_summary = toolbox.list_trace_summaries(session_id=session.session_id)
+    assert len(trace_summary) > 0
+
+    trace_uid = str(trace_summary.iloc[0]["trace_uid"])
+    edit_result = toolbox.update_trace_fields(
+        session_id=session.session_id,
+        trace_uids=[trace_uid],
+        updates={"stim_ear": "left"},
+    )
+    assert edit_result.rows_affected > 0

@@ -226,6 +226,128 @@ def main() -> None:
                 st.error(f"Could not load viewer data: {exc}")
                 st.exception(exc)
 
+    st.subheader("DuckDB Editor")
+    with st.expander("Edit existing DB traces", expanded=False):
+        editor_db_path = st.text_input("DuckDB path (editor)", value=default_db_path, key="editor_db_path")
+        create_backup = st.checkbox("Create backup before edit", value=True, key="editor_create_backup")
+        backup_dir_input = st.text_input(
+            "Backup directory (optional)",
+            value="",
+            key="editor_backup_dir",
+            help="If empty, backups are stored next to the DB file in a 'backups' folder.",
+        )
+        backup_dir = backup_dir_input.strip() or None
+
+        try:
+            editor_toolbox = NeuroAudioToolbox(
+                db_path=Path(editor_db_path),
+                parquet_dir=Path(parquet_dir),
+            )
+            sessions_df = editor_toolbox.list_sessions()
+        except Exception as exc:
+            sessions_df = None
+            st.error(f"Could not open DB for editing: {exc}")
+
+        if sessions_df is not None and sessions_df.empty:
+            st.info("No sessions found in this DuckDB file.")
+        elif sessions_df is not None:
+            session_options = sessions_df["session_id"].astype(str).tolist()
+            selected_session = st.selectbox("Session", options=session_options, key="editor_session_id")
+            trace_limit = int(
+                st.number_input(
+                    "Trace summary limit",
+                    min_value=100,
+                    max_value=100000,
+                    value=5000,
+                    step=100,
+                    key="editor_trace_limit",
+                )
+            )
+            trace_df = editor_toolbox.list_trace_summaries(session_id=selected_session, limit=trace_limit)
+            if trace_df.empty:
+                st.warning("No traces found for selected session.")
+            else:
+                st.caption(f"Loaded {len(trace_df)} traces from session `{selected_session}`.")
+                with st.expander("Trace summary preview", expanded=False):
+                    st.dataframe(trace_df.head(500), use_container_width=True)
+
+                label_to_trace: dict[str, str] = {}
+                trace_labels: list[str] = []
+                for row in trace_df.itertuples(index=False):
+                    stim_ear = row.stim_ear if row.stim_ear is not None else "-"
+                    rel_ear = row.rel_ear if row.rel_ear is not None else "-"
+                    label = f"{row.trace_uid} | {float(row.freq_hz):g} Hz | {float(row.level_db):g} dB | {stim_ear}/{rel_ear}"
+                    label_to_trace[label] = str(row.trace_uid)
+                    trace_labels.append(label)
+
+                selected_labels = st.multiselect(
+                    "Select traces",
+                    options=trace_labels,
+                    key="editor_selected_traces",
+                )
+                selected_trace_uids = [label_to_trace[x] for x in selected_labels]
+
+                action = st.radio(
+                    "Edit action",
+                    options=["Set ear metadata", "Delete traces"],
+                    horizontal=True,
+                    key="editor_action",
+                )
+                if action == "Set ear metadata":
+                    choices = ["(keep)", "left", "right", "(clear)"]
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        stim_choice = st.selectbox("stim_ear", options=choices, key="editor_stim_choice")
+                    with c2:
+                        rec_choice = st.selectbox("rec_ear", options=choices, key="editor_rec_choice")
+                    with c3:
+                        rel_choice = st.selectbox("rel_ear", options=["(keep)", "ipsi", "contra", "(clear)"], key="editor_rel_choice")
+
+                    updates: dict[str, object] = {}
+                    if stim_choice != "(keep)":
+                        updates["stim_ear"] = None if stim_choice == "(clear)" else stim_choice
+                    if rec_choice != "(keep)":
+                        updates["rec_ear"] = None if rec_choice == "(clear)" else rec_choice
+                    if rel_choice != "(keep)":
+                        updates["rel_ear"] = None if rel_choice == "(clear)" else rel_choice
+
+                    if st.button("Apply metadata edit", key="editor_apply_metadata"):
+                        if not selected_trace_uids:
+                            st.error("Select at least one trace to edit.")
+                        elif not updates:
+                            st.error("Choose at least one field to update.")
+                        else:
+                            result = editor_toolbox.update_trace_fields(
+                                session_id=selected_session,
+                                trace_uids=selected_trace_uids,
+                                updates=updates,
+                                create_backup=create_backup,
+                                backup_dir=backup_dir,
+                            )
+                            st.success(f"Updated {result.rows_affected} sample rows.")
+                            if result.backup_path is not None:
+                                st.write(f"Backup: `{result.backup_path}`")
+                else:
+                    confirm = st.text_input(
+                        "Type DELETE to confirm trace deletion",
+                        value="",
+                        key="editor_delete_confirm",
+                    )
+                    delete_disabled = confirm.strip() != "DELETE"
+                    if st.button("Delete selected traces", key="editor_delete", disabled=delete_disabled):
+                        if not selected_trace_uids:
+                            st.error("Select at least one trace to delete.")
+                        else:
+                            result = editor_toolbox.delete_traces(
+                                session_id=selected_session,
+                                trace_uids=selected_trace_uids,
+                                create_backup=create_backup,
+                                backup_dir=backup_dir,
+                            )
+                            st.success(f"Deleted {result.rows_affected} sample rows.")
+                            if result.backup_path is not None:
+                                st.write(f"Backup: `{result.backup_path}`")
+
     if "viewer_rows" in st.session_state:
         rows = st.session_state["viewer_rows"]
         plot_title = st.session_state.get("viewer_title", "ABR Traces")

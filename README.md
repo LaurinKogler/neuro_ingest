@@ -96,6 +96,11 @@ After ingest, use ABR viewer controls for:
   - last ingested session
   - parquet file path
   - DuckDB SQL query
+- DuckDB editor:
+  - select session and traces
+  - edit ear metadata (`stim_ear`, `rec_ear`, `rel_ear`)
+  - delete selected traces
+  - optional backup before edit
 - single-frequency selection
 - ipsi only vs ipsi+contra layout
 - vertical spacing slider (uV)

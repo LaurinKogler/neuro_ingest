@@ -271,6 +271,12 @@ After ingest, the UI shows:
   - last ingested session
   - parquet file path
   - DuckDB SQL query
+- DuckDB editor mode:
+  - load session trace summary
+  - select traces
+  - apply ear metadata edits
+  - delete selected traces (confirmation required)
+  - optional DB backup before changes
 - row preview
 - ABR viewer controls:
   - frequency dropdown (single frequency selection)

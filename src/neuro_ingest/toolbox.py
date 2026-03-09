@@ -65,6 +65,41 @@ class NeuroAudioToolbox:
             session_id=session_id,
         )
 
+    def list_trace_summaries(self, *, session_id: str, limit: int = 20000) -> pd.DataFrame:
+        return self.storage_service.list_trace_summaries(session_id=session_id, limit=limit)
+
+    def delete_traces(
+        self,
+        *,
+        session_id: str,
+        trace_uids: list[str],
+        create_backup: bool = False,
+        backup_dir: str | Path | None = None,
+    ):
+        return self.storage_service.delete_traces(
+            session_id=session_id,
+            trace_uids=trace_uids,
+            create_backup=create_backup,
+            backup_dir=backup_dir,
+        )
+
+    def update_trace_fields(
+        self,
+        *,
+        session_id: str,
+        trace_uids: list[str],
+        updates: dict[str, object],
+        create_backup: bool = False,
+        backup_dir: str | Path | None = None,
+    ):
+        return self.storage_service.update_trace_fields(
+            session_id=session_id,
+            trace_uids=trace_uids,
+            updates=updates,
+            create_backup=create_backup,
+            backup_dir=backup_dir,
+        )
+
     def plot(
         self,
         data: SessionData | pd.DataFrame,
