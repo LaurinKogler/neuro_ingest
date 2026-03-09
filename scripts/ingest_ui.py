@@ -8,6 +8,7 @@ import numpy as np
 import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
+from neuro_ingest.storage.parquet_store import ParquetStore
 from neuro_ingest.ui.workflow import (
     combine_sessions,
     stage_uploaded_files,
@@ -150,6 +151,10 @@ def main() -> None:
             st.session_state["last_session_rows"] = merged_session.rows
             st.session_state["last_session_id"] = merged_session.session_id
             st.session_state["last_session_title"] = f"{merged_session.session_id} ABR"
+            st.session_state["last_parquet_path"] = str(write.parquet_path)
+            st.session_state["last_db_path"] = str(write.db_path)
+            st.session_state["viewer_rows"] = merged_session.rows
+            st.session_state["viewer_title"] = f"{merged_session.session_id} ABR"
 
             st.success("Ingest completed.")
             m1, m2, m3 = st.columns(3)
@@ -162,9 +167,68 @@ def main() -> None:
             st.error(f"Ingest failed: {exc}")
             st.exception(exc)
 
-    if "last_session_rows" in st.session_state:
-        rows = st.session_state["last_session_rows"]
-        plot_title = st.session_state.get("last_session_title", "ABR Traces")
+    st.subheader("Viewer Data Source")
+    source_mode = st.radio(
+        "Choose rows for plotting",
+        options=["Last ingested session", "Parquet file", "DuckDB query"],
+        horizontal=True,
+        index=0,
+    )
+    default_parquet_path = st.session_state.get("last_parquet_path", "")
+    default_db_path = st.session_state.get("last_db_path", db_path)
+    query_sql = "SELECT * FROM samples ORDER BY session_date DESC, session_id DESC LIMIT 50000"
+
+    with st.expander("Load Viewer Data", expanded=False):
+        if source_mode == "Parquet file":
+            parquet_path_input = st.text_input("Parquet path", value=default_parquet_path)
+        elif source_mode == "DuckDB query":
+            db_query_path = st.text_input("DuckDB path (viewer)", value=default_db_path)
+            query_sql = st.text_area("SQL", value=query_sql, height=120)
+
+        if st.button("Load data for viewer", key="load_viewer_rows"):
+            try:
+                if source_mode == "Last ingested session":
+                    if "last_session_rows" not in st.session_state:
+                        st.warning("No last-ingested session available yet.")
+                    else:
+                        st.session_state["viewer_rows"] = st.session_state["last_session_rows"]
+                        st.session_state["viewer_title"] = st.session_state.get("last_session_title", "ABR Traces")
+                        st.success("Loaded last ingested session rows.")
+                elif source_mode == "Parquet file":
+                    if not parquet_path_input.strip():
+                        st.error("Parquet path is required.")
+                    else:
+                        loaded = ParquetStore.load(parquet_path_input.strip())
+                        if loaded.empty:
+                            st.warning("Parquet loaded but no rows found.")
+                        else:
+                            st.session_state["viewer_rows"] = loaded
+                            st.session_state["viewer_title"] = f"{Path(parquet_path_input).name} ABR"
+                            st.success(f"Loaded {len(loaded)} rows from parquet.")
+                else:
+                    if not db_query_path.strip():
+                        st.error("DuckDB path is required.")
+                    elif not query_sql.strip():
+                        st.error("SQL query is required.")
+                    else:
+                        query_toolbox = NeuroAudioToolbox(
+                            db_path=Path(db_query_path.strip()),
+                            parquet_dir=Path(parquet_dir),
+                        )
+                        loaded = query_toolbox.query(query_sql.strip())
+                        if loaded.empty:
+                            st.warning("Query returned no rows.")
+                        else:
+                            st.session_state["viewer_rows"] = loaded
+                            st.session_state["viewer_title"] = "DuckDB Query ABR"
+                            st.success(f"Loaded {len(loaded)} rows from DuckDB query.")
+            except Exception as exc:
+                st.error(f"Could not load viewer data: {exc}")
+                st.exception(exc)
+
+    if "viewer_rows" in st.session_state:
+        rows = st.session_state["viewer_rows"]
+        plot_title = st.session_state.get("viewer_title", "ABR Traces")
 
         with st.expander("Preview rows", expanded=False):
             st.dataframe(rows.head(300), use_container_width=True)

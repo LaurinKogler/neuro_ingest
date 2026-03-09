@@ -267,6 +267,10 @@ Workflow:
 
 After ingest, the UI shows:
 - status + write locations
+- viewer data source modes:
+  - last ingested session
+  - parquet file path
+  - DuckDB SQL query
 - row preview
 - ABR viewer controls:
   - frequency dropdown (single frequency selection)

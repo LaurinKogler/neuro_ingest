@@ -92,6 +92,10 @@ Then open the local Streamlit URL shown in the terminal, drag files in, fill met
 System is explicit in UI (`TDT` or `IHS`); no system auto-detection is used.
 For TDT uploads, use separate left/right upload fields; each side is ingested as its own batch.
 After ingest, use ABR viewer controls for:
+- viewer data source selection:
+  - last ingested session
+  - parquet file path
+  - DuckDB SQL query
 - single-frequency selection
 - ipsi only vs ipsi+contra layout
 - vertical spacing slider (uV)
