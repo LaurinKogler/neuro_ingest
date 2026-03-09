@@ -78,6 +78,8 @@ class PlotService:
                 color_map=color_map,
                 offsets=offsets,
                 amplitude_scale=amplitude_scale,
+                intensity_order=intensity_order,
+                shown_levels=set(),
                 subplot=None,
             )
             if relation_mode == "ipsi_contra":
@@ -110,6 +112,7 @@ class PlotService:
         ipsi_rows = freq_rows[freq_rows["rel_ear"] == "ipsi"]
         contra_rows = freq_rows[freq_rows["rel_ear"] == "contra"]
 
+        shared_shown_levels: set[float] = set()
         self._add_traces(
             fig=fig,
             rows=ipsi_rows,
@@ -118,6 +121,8 @@ class PlotService:
             color_map=color_map,
             offsets=offsets,
             amplitude_scale=amplitude_scale,
+            intensity_order=intensity_order,
+            shown_levels=shared_shown_levels,
             subplot=(1, 1),
         )
         self._add_traces(
@@ -128,6 +133,8 @@ class PlotService:
             color_map=color_map,
             offsets=offsets,
             amplitude_scale=amplitude_scale,
+            intensity_order=intensity_order,
+            shown_levels=shared_shown_levels,
             subplot=(1, 2),
         )
         fig.update_layout(
@@ -231,16 +238,27 @@ class PlotService:
         color_map: dict[Any, str],
         offsets: dict[Any, float],
         amplitude_scale: float,
+        intensity_order: IntensityOrder,
+        shown_levels: set[float],
         subplot: tuple[int, int] | None,
     ) -> None:
         if rows.empty:
             return
 
-        shown_levels: set[float] = set()
+        trace_chunks: list[tuple[Any, pd.DataFrame, float, int]] = []
         grouped = rows.groupby(group_by, sort=False)
         for trace_id, chunk in grouped:
-            chunk = chunk.sort_values("sample_idx")
             level = float(chunk["level_db"].iloc[0])
+            first_idx = int(chunk.index.min())
+            trace_chunks.append((trace_id, chunk, level, first_idx))
+
+        if intensity_order == "desc":
+            trace_chunks.sort(key=lambda x: (-x[2], x[3]))
+        else:
+            trace_chunks.sort(key=lambda x: (x[2], x[3]))
+
+        for trace_id, chunk, level, _ in trace_chunks:
+            chunk = chunk.sort_values("sample_idx")
             offset = offsets.get(trace_id, 0.0)
             y = (chunk["amplitude_uv"] * amplitude_scale) + offset
             color_key = chunk[color_by].iloc[0] if color_by in chunk.columns else level

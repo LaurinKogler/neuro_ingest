@@ -102,3 +102,22 @@ def test_plot_uses_taller_default_height_and_allows_override():
 
     fig_override = PlotService().plot_abr(rows, frequency_hz=0.0, figure_height_px=920)
     assert int(fig_override.layout.height) == 920
+
+
+def test_legend_order_follows_intensity_order():
+    rows = pd.DataFrame(
+        [
+            {"trace_uid": "t_low", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t_low", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 2.0},
+            {"trace_uid": "t_high", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t_high", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 2.0},
+        ]
+    )
+
+    fig_desc = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="desc")
+    desc_legend_names = [trace.name for trace in fig_desc.data if trace.showlegend]
+    assert desc_legend_names == ["90 dB", "70 dB"]
+
+    fig_asc = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="asc")
+    asc_legend_names = [trace.name for trace in fig_asc.data if trace.showlegend]
+    assert asc_legend_names == ["70 dB", "90 dB"]
