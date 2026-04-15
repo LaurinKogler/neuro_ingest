@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 function Resolve-PythonCommand {
     if ($env:NEURO_INGEST_PYTHON_EXE -and (Test-Path $env:NEURO_INGEST_PYTHON_EXE)) {
@@ -11,13 +12,34 @@ function Resolve-PythonCommand {
     }
 
     if ($env:NEURO_INGEST_ENV_PREFIX) {
-        $prefixPython = Join-Path $env:NEURO_INGEST_ENV_PREFIX "python.exe"
-        if (Test-Path $prefixPython) {
-            return $prefixPython
+        $prefixCandidates = @(
+            (Join-Path $env:NEURO_INGEST_ENV_PREFIX "Scripts\python.exe"),
+            (Join-Path $env:NEURO_INGEST_ENV_PREFIX "python.exe")
+        )
+
+        foreach ($candidate in $prefixCandidates) {
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+    }
+
+    if ($env:VIRTUAL_ENV) {
+        $venvCandidates = @(
+            (Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"),
+            (Join-Path $env:VIRTUAL_ENV "python.exe")
+        )
+
+        foreach ($candidate in $venvCandidates) {
+            if (Test-Path $candidate) {
+                return $candidate
+            }
         }
     }
 
     $candidates = @(
+        (Join-Path $repoRoot ".venv\Scripts\python.exe"),
+        (Join-Path $repoRoot "venv\Scripts\python.exe"),
         "$env:USERPROFILE\miniconda3\envs\neuro-ingest\python.exe",
         "$env:USERPROFILE\anaconda3\envs\neuro-ingest\python.exe",
         "$env:USERPROFILE\mambaforge\envs\neuro-ingest\python.exe",
@@ -29,6 +51,11 @@ function Resolve-PythonCommand {
         if (Test-Path $candidate) {
             return $candidate
         }
+    }
+
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCmd) {
+        return $pythonCmd.Source
     }
 
     return $null
@@ -71,7 +98,6 @@ function Resolve-CondaCommand {
 $pythonExe = Resolve-PythonCommand
 $condaExe = Resolve-CondaCommand
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $testRuntimeDir = Join-Path $repoRoot "test_runtime"
 $tmpDir = Join-Path $testRuntimeDir "tmp"
 
@@ -97,13 +123,13 @@ if ($pythonExe) {
     & $condaExe @cmd
     $exitCode = $LASTEXITCODE
 } else {
-    Write-Host "No Python/Conda override found. Set NEURO_INGEST_PYTHON_EXE or NEURO_INGEST_ENV_PREFIX or NEURO_INGEST_CONDA_EXE. Falling back to pytest from active shell."
+    Write-Host "No Python/Conda override found. Activate a virtualenv, create .venv, or set NEURO_INGEST_PYTHON_EXE / NEURO_INGEST_ENV_PREFIX / NEURO_INGEST_CONDA_EXE. Falling back to pytest from active shell."
     try {
         pytest @pytestCommonArgs
         $exitCode = $LASTEXITCODE
     } catch {
         Write-Host "Could not run pytest from active shell either."
-        Write-Host "Set NEURO_INGEST_CONDA_EXE to your conda executable path and retry."
+        Write-Host "Set NEURO_INGEST_PYTHON_EXE or NEURO_INGEST_CONDA_EXE and retry."
         exit 1
     }
 }

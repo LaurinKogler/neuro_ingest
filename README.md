@@ -113,13 +113,196 @@ Security defaults in this launcher:
 
 ## Environment
 
+For a completely blank Windows PC, use standard Python plus a local virtual environment.
+You do not need Anaconda.
+
+Assumptions:
+- the PC is running Windows 10 or Windows 11
+- the PC has internet access
+- you can open a web browser and PowerShell
+
+### Blank-PC Setup
+
+Step 1. Install Python 3.11.
+- open `https://www.python.org/downloads/windows/`
+- download Python 3.11 x64
+- run the installer
+- enable `Add python.exe to PATH`
+- finish the install
+
+Step 2. Confirm Python works.
+Open PowerShell and run:
+
+```powershell
+py --version
+```
+
+You should see Python 3.11.x.
+
+Step 3. Decide how you want to get this repository onto the PC.
+
+Option A: install Git, then clone the repo.
+
+Step 3A-1. Install Git for Windows.
+- open `https://git-scm.com/download/win`
+- download and run the installer
+- the default install options are fine
+
+Step 3A-2. Confirm Git works.
+
+```powershell
+git --version
+```
+
+Step 3A-3. Clone the repo and enter it.
+
+```powershell
+git clone https://github.com/LaurinKogler/neuro_ingest.git
+cd neuro_ingest
+```
+
+Option B: do not install Git, use a ZIP instead.
+
+Step 3B-1. Open:
+- `https://github.com/LaurinKogler/neuro_ingest`
+
+Step 3B-2. Download the ZIP.
+- click `Code`
+- click `Download ZIP`
+
+Step 3B-3. Extract the ZIP somewhere convenient.
+Example:
+- `C:\Users\YourName\Documents\neuro_ingest`
+
+Step 3B-4. Open PowerShell in the extracted `neuro_ingest` folder.
+One easy way:
+- open the folder in File Explorer
+- click the address bar
+- type `powershell`
+- press Enter
+
+Step 4. Create a local virtual environment inside the repo folder.
+
+```powershell
+py -3.11 -m venv .venv
+```
+
+Step 5. Activate that virtual environment.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation, run this once in that PowerShell window:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+Then activate again:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Step 6. Upgrade `pip` inside the virtual environment.
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+Step 7. Install this project.
+
+```powershell
+pip install .
+```
+
+What Step 7 does:
+- installs the `neuro_ingest` package from the repo folder on your PC
+- downloads the Python dependencies listed in `pyproject.toml` from PyPI
+
+Step 8. Start the UI.
+
+```powershell
+scripts\run_ingest_ui.ps1
+```
+
+Step 9. Open the local URL shown in the terminal.
+It will usually look like:
+
+```text
+http://localhost:8501
+```
+
+Alternative to Step 8:
+
+```powershell
+python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --server.address localhost
+```
+
+### Summary Of What Must Be Installed
+
+Required:
+- Python 3.11
+
+Required for one repo-download method:
+- Git for Windows, only if you want to use `git clone`
+
+Not required:
+- Anaconda
+- Miniconda
+- VS Code
+- Visual Studio
+
+### Recommended Folder Layout
+
+If you want an easy-to-remember setup on Windows, use something like:
+
+```text
+C:\Users\YourName\Projects\neuro_ingest
+C:\Users\YourName\Projects\neuro_ingest\.venv
+C:\Users\YourName\NeuroIngestData\normalized
+C:\Users\YourName\NeuroIngestData\neuro_audio.duckdb
+```
+
+What goes where:
+- the repo lives in `C:\Users\YourName\Projects\neuro_ingest`
+- the virtual environment lives inside the repo as `.venv`
+- the output Parquet files live in a separate data folder
+- the DuckDB database file lives in that same separate data folder
+
+Why this layout helps:
+- code and dependencies stay together
+- data stays separate from the repo
+- you can update or re-clone the repo without mixing it with saved outputs
+
+How to control install locations:
+- `git clone ...` creates the repo in whatever folder PowerShell is currently in
+- `py -3.11 -m venv .venv` creates the virtual environment in the current repo folder
+- `pip install .` installs the package into the active virtual environment, not system-wide
+
+Example:
+
+```powershell
+mkdir C:\Users\YourName\Projects
+cd C:\Users\YourName\Projects
+git clone https://github.com/LaurinKogler/neuro_ingest.git
+cd neuro_ingest
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install .
+```
+
+If you prefer Conda, the old setup still works:
+
 ```bash
 conda env create -f environment.yml
 conda activate neuro-ingest
 ```
 
-If your existing environment already has NumPy 2.x and crashes on import on Windows, run:
+If your existing environment already has NumPy 2.x and crashes on import on Windows, pin NumPy below 2:
 
 ```powershell
-conda install -n neuro-ingest "numpy<2"
+pip install "numpy<2"
 ```

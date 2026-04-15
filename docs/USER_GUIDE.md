@@ -19,6 +19,164 @@ Main modules:
 
 ## 2. Environment Setup
 
+For a completely blank Windows PC, use standard Python plus a local virtual environment.
+You do not need Anaconda.
+
+Assumptions:
+- Windows 10 or Windows 11
+- internet access
+- a web browser
+- PowerShell
+
+Step 1. Install Python 3.11.
+- open `https://www.python.org/downloads/windows/`
+- download Python 3.11 x64
+- run the installer
+- enable `Add python.exe to PATH`
+- finish installation
+
+Step 2. Confirm Python is installed.
+Open PowerShell and run:
+
+```powershell
+py --version
+```
+
+Expected result:
+- Python 3.11.x
+
+Step 3. Decide how to get this repository onto the PC.
+
+Option A: install Git and clone the repo.
+
+Step 3A-1. Install Git for Windows.
+- open `https://git-scm.com/download/win`
+- download the installer
+- run it with default options
+
+Step 3A-2. Confirm Git works:
+
+```powershell
+git --version
+```
+
+Step 3A-3. Clone the repository:
+
+```powershell
+git clone https://github.com/LaurinKogler/neuro_ingest.git
+cd neuro_ingest
+```
+
+Option B: do not install Git, download the repository ZIP.
+
+Step 3B-1. Open:
+- `https://github.com/LaurinKogler/neuro_ingest`
+
+Step 3B-2. Download:
+- click `Code`
+- click `Download ZIP`
+
+Step 3B-3. Extract the ZIP to a folder you can access easily.
+
+Step 3B-4. Open PowerShell in the extracted `neuro_ingest` folder.
+
+Step 4. Create a virtual environment inside the repository:
+
+```powershell
+py -3.11 -m venv .venv
+```
+
+Step 5. Activate the virtual environment:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If activation is blocked in PowerShell, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+Then run the activation command again.
+
+Step 6. Upgrade `pip`:
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+Step 7. Install this project:
+
+```powershell
+pip install .
+```
+
+What Step 7 does:
+- installs `neuro_ingest` from the repository folder on your PC
+- downloads dependencies from PyPI using `pip`
+
+Step 8. Start the local UI:
+
+```powershell
+scripts/run_ingest_ui.ps1
+```
+
+Step 9. Open the local URL shown in the terminal.
+Usually:
+- `http://localhost:8501`
+
+Alternative to Step 8:
+
+```powershell
+python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --server.address localhost
+```
+
+Summary of what must be installed:
+- Python 3.11
+- Git for Windows, only if you want to use `git clone`
+
+Not required:
+- Anaconda
+- Miniconda
+- VS Code
+- Visual Studio
+
+Recommended folder layout:
+
+```text
+C:\Users\YourName\Projects\neuro_ingest
+C:\Users\YourName\Projects\neuro_ingest\.venv
+C:\Users\YourName\NeuroIngestData\normalized
+C:\Users\YourName\NeuroIngestData\neuro_audio.duckdb
+```
+
+What goes where:
+- the repo folder contains the source code
+- `.venv` contains the Python environment for this project
+- `normalized` stores output Parquet files
+- `neuro_audio.duckdb` stores the local DuckDB database
+
+How to decide install locations:
+- `git clone ...` puts the repo in the folder you are currently in
+- `py -3.11 -m venv .venv` creates the environment in the current repo folder
+- `pip install .` installs into the active virtual environment
+
+Example:
+
+```powershell
+mkdir C:\Users\YourName\Projects
+cd C:\Users\YourName\Projects
+git clone https://github.com/LaurinKogler/neuro_ingest.git
+cd neuro_ingest
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install .
+```
+
+If you prefer Conda, this still works too:
+
 ```bash
 conda env create -f environment.yml
 conda activate neuro-ingest
@@ -27,7 +185,7 @@ conda activate neuro-ingest
 If you have a Windows NumPy import crash with NumPy 2.x:
 
 ```powershell
-conda install -n neuro-ingest "numpy<2"
+pip install "numpy<2"
 ```
 
 ## 3. Main Entry Point
@@ -264,6 +422,13 @@ Start it:
 ```powershell
 scripts/run_ingest_ui.ps1
 ```
+
+The launcher now works with:
+- an active virtualenv
+- a repo-local `.venv`
+- `NEURO_INGEST_PYTHON_EXE`
+- `NEURO_INGEST_ENV_PREFIX`
+- existing Conda env discovery
 
 The launcher sets safer defaults:
 - `--server.address localhost` (local-only binding)

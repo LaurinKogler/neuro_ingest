@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 function Resolve-PythonCommand {
     if ($env:NEURO_INGEST_PYTHON_EXE -and (Test-Path $env:NEURO_INGEST_PYTHON_EXE)) {
@@ -11,13 +12,34 @@ function Resolve-PythonCommand {
     }
 
     if ($env:NEURO_INGEST_ENV_PREFIX) {
-        $prefixPython = Join-Path $env:NEURO_INGEST_ENV_PREFIX "python.exe"
-        if (Test-Path $prefixPython) {
-            return $prefixPython
+        $prefixCandidates = @(
+            (Join-Path $env:NEURO_INGEST_ENV_PREFIX "Scripts\python.exe"),
+            (Join-Path $env:NEURO_INGEST_ENV_PREFIX "python.exe")
+        )
+
+        foreach ($candidate in $prefixCandidates) {
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+    }
+
+    if ($env:VIRTUAL_ENV) {
+        $venvCandidates = @(
+            (Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"),
+            (Join-Path $env:VIRTUAL_ENV "python.exe")
+        )
+
+        foreach ($candidate in $venvCandidates) {
+            if (Test-Path $candidate) {
+                return $candidate
+            }
         }
     }
 
     $candidates = @(
+        (Join-Path $repoRoot ".venv\Scripts\python.exe"),
+        (Join-Path $repoRoot "venv\Scripts\python.exe"),
         "$env:USERPROFILE\miniconda3\envs\neuro-ingest\python.exe",
         "$env:USERPROFILE\anaconda3\envs\neuro-ingest\python.exe",
         "$env:USERPROFILE\mambaforge\envs\neuro-ingest\python.exe",
@@ -31,12 +53,17 @@ function Resolve-PythonCommand {
         }
     }
 
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCmd) {
+        return $pythonCmd.Source
+    }
+
     return $null
 }
 
 $pythonExe = Resolve-PythonCommand
 if (-not $pythonExe) {
-    Write-Host "Python env not found. Set NEURO_INGEST_PYTHON_EXE or NEURO_INGEST_ENV_PREFIX."
+    Write-Host "Python env not found. Activate a virtualenv, create .venv, or set NEURO_INGEST_PYTHON_EXE / NEURO_INGEST_ENV_PREFIX."
     exit 1
 }
 
