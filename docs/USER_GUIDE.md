@@ -122,6 +122,12 @@ Step 8. Start the local UI:
 scripts/run_ingest_ui.ps1
 ```
 
+For a simpler repeat-use launch, you can also double-click:
+
+```text
+start_neuro_ingest_ui.bat
+```
+
 Step 9. Open the local URL shown in the terminal.
 Usually:
 - `http://localhost:8501`
@@ -131,6 +137,11 @@ Alternative to Step 8:
 ```powershell
 python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --server.address localhost
 ```
+
+After first-time setup, the easiest repeat-use path is usually:
+- double-click `start_neuro_ingest_ui.bat`
+- leave the PowerShell window open while the UI is running
+- press `Ctrl+C` in that window to stop it
 
 Summary of what must be installed:
 - Python 3.11
