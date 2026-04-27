@@ -128,6 +128,12 @@ For a simpler repeat-use launch, you can also double-click:
 start_neuro_ingest_ui.bat
 ```
 
+To update the repo on an already configured PC, you can double-click:
+
+```text
+update_neuro_ingest.bat
+```
+
 Step 9. Open the local URL shown in the terminal.
 Usually:
 - `http://localhost:8501`
@@ -140,6 +146,7 @@ python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --
 
 After first-time setup, the easiest repeat-use path is usually:
 - double-click `start_neuro_ingest_ui.bat`
+- double-click `update_neuro_ingest.bat` when you want the newest repo code plus a refreshed local install
 - leave the PowerShell window open while the UI is running
 - press `Ctrl+C` in that window to stop it
 

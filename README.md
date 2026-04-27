@@ -235,6 +235,12 @@ If you want a simpler day-to-day launch, you can also double-click:
 start_neuro_ingest_ui.bat
 ```
 
+To update an existing checkout on another PC, you can double-click:
+
+```text
+update_neuro_ingest.bat
+```
+
 Step 9. Open the local URL shown in the terminal.
 It will usually look like:
 
@@ -250,6 +256,7 @@ python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --
 
 After first-time setup, the easiest repeat-use path is usually:
 - double-click `start_neuro_ingest_ui.bat`
+- double-click `update_neuro_ingest.bat` whenever you want to pull the latest repo changes and refresh the installed package
 - keep the PowerShell window open while using the UI
 - press `Ctrl+C` in that window when you want to stop it
 
