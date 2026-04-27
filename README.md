@@ -91,6 +91,8 @@ scripts/run_ingest_ui.ps1
 Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
 System is explicit in UI (`TDT` or `IHS`); no system auto-detection is used.
 For TDT uploads, use separate left/right upload fields; each side is ingested as its own batch.
+Machine-specific UI defaults live in `scripts/ingest_ui.local.toml`.
+Use `scripts/ingest_ui.local.example.toml` as the template; the `.local.toml` file is git-ignored so local paths and naming defaults are not overwritten by pulls.
 After ingest, use ABR viewer controls for:
 - viewer data source selection:
   - last ingested session

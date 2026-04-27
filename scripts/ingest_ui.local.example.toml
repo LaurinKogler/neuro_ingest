@@ -1,0 +1,21 @@
+# Copy this file to `ingest_ui.local.toml` in the same folder and edit it per PC.
+# `ingest_ui.local.toml` is git-ignored, so updates/pulls will not overwrite it.
+
+system_choice = "TDT"
+animal_id = ""
+paradigm = "abr"
+day_text = ""
+session_id = ""
+
+# Naming template for auto-generated TDT session IDs when the Session ID box is left blank.
+# Available placeholders: {animal_id}, {session_date}, {date_ymd}, {day}, {day_suffix}
+session_id_template = "{animal_id}_{date_ymd}"
+
+# Change these to per-machine storage locations.
+parquet_dir = "C:/Users/YourName/NeuroIngestData/normalized"
+db_path = "C:/Users/YourName/NeuroIngestData/neuro_audio.duckdb"
+
+overwrite = false
+viewer_row_limit = 100000
+editor_trace_limit = 5000
+viewer_query_sql = "SELECT * FROM samples ORDER BY session_date DESC, session_id DESC LIMIT 100000"

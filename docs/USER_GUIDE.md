@@ -454,6 +454,11 @@ Workflow:
 - set output paths (`Parquet output dir`, `DuckDB path`)
 - click **Ingest**
 
+Per-PC UI defaults:
+- edit `scripts/ingest_ui.local.toml` for machine-specific paths, default system/paradigm, viewer limits, or session naming template
+- start from `scripts/ingest_ui.local.example.toml` if you need to recreate it
+- `scripts/ingest_ui.local.toml` is git-ignored, so git updates do not overwrite those local values
+
 After ingest, the UI shows:
 - status + write locations
 - viewer data source modes:

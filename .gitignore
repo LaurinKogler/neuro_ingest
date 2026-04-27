@@ -26,6 +26,7 @@ test_output/
 .pytest_tmp/
 .tmp_pytest_ui/
 tmp_mode_test/
+scripts/ingest_ui.local.toml
 
 # OS
 .DS_Store

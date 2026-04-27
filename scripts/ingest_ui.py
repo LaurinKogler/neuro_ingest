@@ -9,6 +9,12 @@ import streamlit as st
 
 from neuro_ingest.toolbox import NeuroAudioToolbox
 from neuro_ingest.storage.parquet_store import ParquetStore
+from neuro_ingest.ui.settings import (
+    IngestUISettings,
+    LOCAL_UI_SETTINGS_FILENAME,
+    build_session_id,
+    load_ui_settings,
+)
 from neuro_ingest.ui.workflow import (
     combine_sessions,
     stage_uploaded_files,
@@ -16,23 +22,46 @@ from neuro_ingest.ui.workflow import (
 
 
 def main() -> None:
+    scripts_dir = Path(__file__).resolve().parent
+    try:
+        ui_settings, config_warnings = load_ui_settings(scripts_dir)
+    except ValueError as exc:
+        ui_settings = IngestUISettings()
+        config_warnings = []
+        config_error = f"Could not load {LOCAL_UI_SETTINGS_FILENAME}: {exc}"
+    else:
+        config_error = None
+
     st.set_page_config(page_title="Neuro Ingest UI", layout="wide")
     st.title("Neuro-Audio Drag-and-Drop Ingest")
     st.caption("Upload one or more files, fill metadata, then ingest to Parquet + DuckDB.")
+    st.caption(
+        f"Per-PC defaults live in `{LOCAL_UI_SETTINGS_FILENAME}` next to this script. "
+        "That file is intended for local paths and naming preferences."
+    )
+    if config_error is not None:
+        st.error(config_error)
+    for warning in config_warnings:
+        st.warning(warning)
 
     left, right = st.columns(2)
+    system_options = ["TDT", "IHS"]
     with left:
-        system_choice = st.selectbox("System (required)", ["TDT", "IHS"], index=0)
-        animal_id = st.text_input("Animal ID", value="")
+        system_choice = st.selectbox(
+            "System (required)",
+            system_options,
+            index=system_options.index(ui_settings.system_choice),
+        )
+        animal_id = st.text_input("Animal ID", value=ui_settings.animal_id)
         session_date = st.date_input("Session date", value=date.today())
-        paradigm = st.text_input("Paradigm", value="abr")
-        day_text = st.text_input("Day (optional)", value="")
-        session_id = st.text_input("Session ID (optional)", value="")
+        paradigm = st.text_input("Paradigm", value=ui_settings.paradigm)
+        day_text = st.text_input("Day (optional)", value=ui_settings.day_text)
+        session_id = st.text_input("Session ID (optional)", value=ui_settings.session_id)
 
     with right:
-        parquet_dir = st.text_input("Parquet output dir", value="normalized")
-        db_path = st.text_input("DuckDB path", value="normalized/neuro_audio.duckdb")
-        overwrite = st.checkbox("Overwrite existing session", value=False)
+        parquet_dir = st.text_input("Parquet output dir", value=ui_settings.parquet_dir)
+        db_path = st.text_input("DuckDB path", value=ui_settings.db_path)
+        overwrite = st.checkbox("Overwrite existing session", value=ui_settings.overwrite)
 
     tdt_left_files = []
     tdt_right_files = []
@@ -95,7 +124,12 @@ def main() -> None:
 
             with TemporaryDirectory(prefix="neuro_ingest_ui_") as tmpdir:
                 if system_choice == "TDT":
-                    base_session_id = session_id.strip() or f"{animal_id.strip()}_{session_date:%Y%m%d}"
+                    base_session_id = session_id.strip() or build_session_id(
+                        template=ui_settings.session_id_template,
+                        animal_id=animal_id.strip(),
+                        session_date=session_date,
+                        day=day,
+                    )
 
                     if tdt_left_files:
                         left_dir = Path(tmpdir) / "left"
@@ -176,7 +210,7 @@ def main() -> None:
     )
     default_parquet_path = st.session_state.get("last_parquet_path", "")
     default_db_path = st.session_state.get("last_db_path", db_path)
-    query_sql = "SELECT * FROM samples ORDER BY session_date DESC, session_id DESC LIMIT 100000"
+    query_sql = ui_settings.viewer_query_sql
 
     with st.expander("Load Viewer Data", expanded=False):
         if source_mode == "Parquet file":
@@ -201,7 +235,7 @@ def main() -> None:
                         "row limit",
                         min_value=100,
                         max_value=500000,
-                        value=100000,
+                        value=ui_settings.viewer_row_limit,
                         step=1000,
                     )
                 )
@@ -320,7 +354,7 @@ def main() -> None:
                     "Trace summary limit",
                     min_value=100,
                     max_value=100000,
-                    value=5000,
+                    value=ui_settings.editor_trace_limit,
                     step=100,
                     key="editor_trace_limit",
                 )
