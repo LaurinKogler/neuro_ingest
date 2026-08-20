@@ -1,27 +1,158 @@
 # neuro_ingest
 
-`neuro_ingest` is a modular neuro-audio workbench for:
-- ingestion and normalization of vendor exports
-- local persistence (Parquet + DuckDB)
-- interactive ABR plotting in Jupyter
-- drag-and-drop ingestion UI for local use
+`neuro_ingest` is a local workbench for neuro-audio data. It ingests TDT and
+IHS exports, normalizes them into one sample-table shape, writes Parquet files
+and DuckDB databases, and gives you an interactive ABR viewer for checking
+traces and thresholds.
 
-The guiding idea is simple: raw vendor files are read only, while normalized
-sample tables, DuckDB indexes, edits, and backups are written separately.
+The main rule is simple: raw vendor files stay untouched. Normalized data,
+DuckDB indexes, edits, backups, and personal settings are written separately.
 
-Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+For the full walkthrough, see [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
-## Module Map
+## Quick Start
 
-- `neuro_ingest.ingest`: vendor parsers + ingestion orchestration
-- `neuro_ingest.data`: typed in-memory session model (`SessionData`)
-- `neuro_ingest.storage`: Parquet and DuckDB stores + storage service
-- `neuro_ingest.plot`: interactive ABR plotting service
-- `neuro_ingest.toolbox`: single facade for notebook workflows
-- `app/streamlit_app.py`: primary Streamlit app entrypoint
-- `scripts/ingest_ui.py`: Streamlit drag-and-drop ingest app
+On a Windows PC with Python 3.11 installed:
 
-## Quick Workflow
+```powershell
+git clone https://github.com/LaurinKogler/neuro_ingest.git
+cd neuro_ingest
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install .
+scripts\run_ingest_ui.ps1
+```
+
+Then open the local Streamlit URL shown in the terminal. It is usually:
+
+```text
+http://localhost:8501
+```
+
+For day-to-day use after setup, double-click:
+
+```text
+start_neuro_ingest_ui.bat
+```
+
+To update an already configured PC, double-click:
+
+```text
+update_neuro_ingest.bat
+```
+
+If PowerShell blocks virtual-environment activation, run this once in the same
+PowerShell window and activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+## What The App Does
+
+The Streamlit app has four main areas:
+
+- **Ingest**: manually upload left/right TDT files or IHS exports, add session
+  metadata, and write Parquet plus DuckDB output.
+- **Mass Ingest**: scan a folder tree, preview what will be imported, review
+  warnings, and then write many sessions at once.
+- **Viewer**: load traces from the last ingest, a Parquet file, DuckDB filters,
+  or a DuckDB SQL query. DuckDB filters are the normal default when no file was
+  just uploaded.
+- **Database**: inspect stored sessions and edit trace metadata such as
+  `stim_ear`, `rec_ear`, and `rel_ear`.
+
+The sidebar controls the default session metadata and storage target. The
+in-app **Settings** panel stores personal defaults such as trace density,
+waveform size, viewer row limits, and editor backup behavior.
+
+## Manual Ingest
+
+Use the **Ingest** tab when you have a small set of files for one session.
+
+1. Choose `TDT` or `IHS`.
+2. Fill in animal ID, session date, paradigm, and optional day/session ID.
+3. For TDT, drop left-ear and right-ear files into the separate upload boxes.
+4. Press **Ingest**.
+5. Check the viewer or database output.
+
+The app writes:
+
+- Parquet output in the selected Parquet directory.
+- A DuckDB database at the selected DuckDB target.
+
+## Mass Ingest
+
+Use **Mass Ingest** when you have a whole folder tree of TDT exports.
+
+The expected folder pattern is:
+
+```text
+<animal_id>\<animal_id>_d<day>_<YYYYMMDD>\...
+```
+
+Example:
+
+```text
+AC04\AC04_d42_20260820\
+```
+
+Files can contain labels such as `ClickABR`, `ToneABR`, `left`, `right`, extra
+frequency/level notes, or redo markers. Split measurements for the same
+animal/day/date can be merged into the same session, which is useful when you
+recorded a few extra louder or quieter traces outside the main file.
+
+Recommended workflow:
+
+1. Pick the folder tree with **Browse**.
+2. Run a dry run.
+3. Read the warnings and discovered sessions.
+4. Choose whether to create a new DuckDB or merge into an existing one.
+5. Choose the existing-session policy:
+   - **Skip existing sessions** keeps old data and imports only new sessions.
+   - **Stop with error** aborts if a session already exists.
+   - **Overwrite** replaces matching existing sessions.
+6. Run the write import.
+
+Backups are hidden from the DuckDB dropdowns so old backup files do not clutter
+normal choices.
+
+## Viewer Notes
+
+The ABR viewer is designed for threshold inspection:
+
+- Frequency `0` is shown as `Click`.
+- Trace intensity is labeled directly on the stacked Y axis when possible.
+- The plot colors use a plasma-style palette for readable trace separation.
+- Left and right ears get independent density and waveform-size controls.
+- Day filters accept either `d14` or `14`.
+- Animal and day filters are dropdowns based on what is available in the
+  selected DuckDB.
+
+## Settings And Local Files
+
+Personal UI defaults are stored here:
+
+```text
+data/processed/settings/user_settings.json
+```
+
+Machine-specific launcher defaults can live here:
+
+```text
+scripts/ingest_ui.local.toml
+```
+
+Both files are ignored by Git, so your local paths and preferences are not
+overwritten when you pull updates.
+
+Generated data and databases are local working files. Keep them outside Git
+unless you deliberately want to archive a small test fixture.
+
+## Python API
+
+The UI is the normal path, but the toolbox can also be used from Python:
 
 ```python
 from datetime import date
@@ -36,327 +167,63 @@ session = toolbox.ingest(
     system="TDT",
     input_path="raw/TDT/session_001",
     animal_id="AC04",
-    session_date=date(2025, 10, 17),
+    session_date=date(2026, 8, 20),
+    day=42,
 )
-toolbox.save(session, overwrite=False)
 
+toolbox.save(session, overwrite=False)
 df = toolbox.query("SELECT * FROM samples WHERE animal_id = ?", ["AC04"])
-fig = toolbox.plot(
-    df,
-    frequency_hz=0.0,         # required if dataset contains >1 frequency
-    relation_mode="ipsi",     # or "ipsi_contra"
-    spacing_uv=0.0,           # vertical trace spacing in uV
-    color_by="level_db",
-)
+fig = toolbox.plot(df, frequency_hz=0.0, relation_mode="ipsi")
 fig.show()
 ```
 
-## Backward Compatibility
+## Project Map
 
-The lab-facing function `neuro_ingest.lab.ingest_session(...)` is still available.
-It now delegates to the new services and writes both Parquet and DuckDB outputs.
+- `app/streamlit_app.py`: Streamlit entrypoint.
+- `scripts/ingest_ui.py`: main UI implementation.
+- `src/neuro_ingest/ingest`: vendor parsers and ingest orchestration.
+- `src/neuro_ingest/batch.py`: folder-tree discovery and mass ingest planning.
+- `src/neuro_ingest/storage`: Parquet and DuckDB storage.
+- `src/neuro_ingest/plot`: ABR plotting.
+- `src/neuro_ingest/toolbox.py`: notebook/Python facade.
+- `docs/USER_GUIDE.md`: longer setup and usage guide.
 
-## Test Runner
+## Development
 
-Use the project script:
-
-```powershell
-scripts/run_tests.ps1
-```
-
-If Conda is not on PATH, set:
-
-```powershell
-$env:NEURO_INGEST_CONDA_EXE = "C:\path\to\conda.exe"
-```
-
-Or bypass Conda discovery entirely:
+Install the optional development tools when you want tests, formatting, and
+linting:
 
 ```powershell
-$env:NEURO_INGEST_ENV_PREFIX = "C:\Users\Admin\miniconda3\envs\neuro-ingest"
-# or
-$env:NEURO_INGEST_PYTHON_EXE = "C:\Users\Admin\miniconda3\envs\neuro-ingest\python.exe"
+pip install -e ".[dev]"
 ```
-
-Or pass custom pytest arguments:
-
-```powershell
-scripts/run_tests.ps1 tests/test_lab_api.py -q
-```
-
-## Drag-and-Drop UI
-
-Start the local ingest UI:
-
-```powershell
-scripts/run_ingest_ui.ps1
-```
-
-The launcher runs `app/streamlit_app.py`, which delegates to the maintained
-Streamlit implementation in `scripts/ingest_ui.py`.
-
-Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
-System is explicit in UI (`TDT` or `IHS`); no system auto-detection is used.
-For TDT uploads, use separate left/right upload fields; each side is ingested as its own batch.
-Machine-specific UI defaults live in `scripts/ingest_ui.local.toml`.
-Use `scripts/ingest_ui.local.example.toml` as the template; the `.local.toml` file is git-ignored so local paths and naming defaults are not overwritten by pulls.
-Workbench defaults such as trace spacing, amplitude scale, relation mode, row limits, and editor backup behavior can be saved from the in-app **Settings** panel. Those personal defaults are stored at `data/processed/settings/user_settings.json`, which is also ignored by Git.
-After ingest, use ABR viewer controls for:
-- viewer data source selection:
-  - last ingested session
-  - parquet file path
-  - DuckDB filters (no SQL): `animal_id`, `session_id`, `day`, `system`, `paradigm`
-  - DuckDB SQL query
-- DuckDB editor:
-  - select session and traces
-  - edit ear metadata (`stim_ear`, `rec_ear`, `rel_ear`)
-  - delete selected traces
-  - optional backup before edit
-- single-frequency selection
-- ipsi only vs ipsi+contra layout
-- vertical spacing slider (uV)
-- automatic side separation when both left/right stim ears are present
-
-Security defaults in this launcher:
-- binds to `localhost` only
-- disables Streamlit usage telemetry (`browser.gatherUsageStats=false`)
-
-## Environment
-
-For a completely blank Windows PC, use standard Python plus a local virtual environment.
-You do not need Anaconda.
-
-Assumptions:
-- the PC is running Windows 10 or Windows 11
-- the PC has internet access
-- you can open a web browser and PowerShell
-
-### Blank-PC Setup
-
-Step 1. Install Python 3.11.
-- open `https://www.python.org/downloads/windows/`
-- download Python 3.11 x64
-- run the installer
-- enable `Add python.exe to PATH`
-- finish the install
-
-Step 2. Confirm Python works.
-Open PowerShell and run:
-
-```powershell
-py --version
-```
-
-You should see Python 3.11.x.
-
-Step 3. Decide how you want to get this repository onto the PC.
-
-Option A: install Git, then clone the repo.
-
-Step 3A-1. Install Git for Windows.
-- open `https://git-scm.com/download/win`
-- download and run the installer
-- the default install options are fine
-
-Step 3A-2. Confirm Git works.
-
-```powershell
-git --version
-```
-
-Step 3A-3. Clone the repo and enter it.
-
-```powershell
-git clone https://github.com/LaurinKogler/neuro_ingest.git
-cd neuro_ingest
-```
-
-Option B: do not install Git, use a ZIP instead.
-
-Step 3B-1. Open:
-- `https://github.com/LaurinKogler/neuro_ingest`
-
-Step 3B-2. Download the ZIP.
-- click `Code`
-- click `Download ZIP`
-
-Step 3B-3. Extract the ZIP somewhere convenient.
-Example:
-- `C:\Users\YourName\Documents\neuro_ingest`
-
-Step 3B-4. Open PowerShell in the extracted `neuro_ingest` folder.
-One easy way:
-- open the folder in File Explorer
-- click the address bar
-- type `powershell`
-- press Enter
-
-Step 4. Create a local virtual environment inside the repo folder.
-
-```powershell
-py -3.11 -m venv .venv
-```
-
-Step 5. Activate that virtual environment.
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-If PowerShell blocks activation, run this once in that PowerShell window:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Then activate again:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Step 6. Upgrade `pip` inside the virtual environment.
-
-```powershell
-python -m pip install --upgrade pip
-```
-
-Step 7. Install this project.
-
-```powershell
-pip install .
-```
-
-For development work, include the optional test/format/lint tools:
-
-```powershell
-pip install ".[dev]"
-```
-
-What Step 7 does:
-- installs the `neuro_ingest` package from the repo folder on your PC
-- downloads the Python dependencies listed in `pyproject.toml` from PyPI
-
-Step 8. Start the UI.
-
-```powershell
-scripts\run_ingest_ui.ps1
-```
-
-If you want a simpler day-to-day launch, you can also double-click:
-
-```text
-start_neuro_ingest_ui.bat
-```
-
-To update an existing checkout on another PC, you can double-click:
-
-```text
-update_neuro_ingest.bat
-```
-
-Step 9. Open the local URL shown in the terminal.
-It will usually look like:
-
-```text
-http://localhost:8501
-```
-
-Alternative to Step 8:
-
-```powershell
-python -m streamlit run scripts/ingest_ui.py --browser.gatherUsageStats false --server.address localhost
-```
-
-After first-time setup, the easiest repeat-use path is usually:
-- double-click `start_neuro_ingest_ui.bat`
-- double-click `update_neuro_ingest.bat` whenever you want to pull the latest repo changes and refresh the installed package
-- keep the PowerShell window open while using the UI
-- press `Ctrl+C` in that window when you want to stop it
-
-### Summary Of What Must Be Installed
-
-Required:
-- Python 3.11
-
-Required for one repo-download method:
-- Git for Windows, only if you want to use `git clone`
-
-Not required:
-- Anaconda
-- Miniconda
-- VS Code
-- Visual Studio
-
-### Recommended Folder Layout
-
-If you want an easy-to-remember setup on Windows, use something like:
-
-```text
-C:\Users\YourName\Projects\neuro_ingest
-C:\Users\YourName\Projects\neuro_ingest\.venv
-C:\Users\YourName\NeuroIngestData\normalized
-C:\Users\YourName\NeuroIngestData\neuro_audio.duckdb
-```
-
-What goes where:
-- the repo lives in `C:\Users\YourName\Projects\neuro_ingest`
-- the virtual environment lives inside the repo as `.venv`
-- the output Parquet files live in a separate data folder
-- the DuckDB database file lives in that same separate data folder
-
-Why this layout helps:
-- code and dependencies stay together
-- data stays separate from the repo
-- you can update or re-clone the repo without mixing it with saved outputs
-
-How to control install locations:
-- `git clone ...` creates the repo in whatever folder PowerShell is currently in
-- `py -3.11 -m venv .venv` creates the virtual environment in the current repo folder
-- `pip install .` installs the package into the active virtual environment, not system-wide
-
-Example:
-
-```powershell
-mkdir C:\Users\YourName\Projects
-cd C:\Users\YourName\Projects
-git clone https://github.com/LaurinKogler/neuro_ingest.git
-cd neuro_ingest
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install .
-```
-
-If you prefer Conda, the old setup still works:
-
-```bash
-conda env create -f environment.yml
-conda activate neuro-ingest
-```
-
-If your existing environment already has NumPy 2.x and crashes on import on Windows, pin NumPy below 2:
-
-```powershell
-pip install "numpy<2"
-```
-
-## Common Commands
 
 Run tests:
 
 ```powershell
-scripts/run_tests.ps1
+scripts\run_tests.ps1
 ```
 
-Run linting:
+Run linting and formatting checks:
 
 ```powershell
 ruff check .
-```
-
-Check formatting:
-
-```powershell
 black --check .
 ```
+
+## Requirements
+
+Required:
+
+- Windows 10 or Windows 11 for the provided launcher scripts.
+- Python 3.11.
+
+Optional:
+
+- Git for Windows, if you want easy cloning and updates.
+- Conda or Miniconda, if you prefer that environment style.
+
+Not required:
+
+- Anaconda.
+- VS Code.
+- Visual Studio.
