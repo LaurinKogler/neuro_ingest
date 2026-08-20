@@ -25,8 +25,14 @@ class StorageService:
             rows_written=len(session.rows),
         )
 
+    def session_exists(self, session_id: str) -> bool:
+        return self.duckdb_store.session_exists(session_id)
+
     def query(self, sql: str, params: dict | list | tuple | None = None) -> pd.DataFrame:
         return self.duckdb_store.query(sql, params=params)
+
+    def list_sample_filter_values(self, *, animal_id: str | None = None) -> dict[str, list]:
+        return self.duckdb_store.list_sample_filter_values(animal_id=animal_id)
 
     def get_samples(
         self,

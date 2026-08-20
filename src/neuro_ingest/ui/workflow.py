@@ -10,6 +10,13 @@ from neuro_ingest.ingest.registry import detect_ingestor
 from neuro_ingest.ingest.tdt_ear import infer_tdt_ear_from_filenames
 from neuro_ingest.toolbox import NeuroAudioToolbox
 
+VIEWER_SOURCE_OPTIONS = [
+    "Last ingested session",
+    "Parquet file",
+    "DuckDB filters (no SQL)",
+    "DuckDB query",
+]
+
 
 class UploadedFileLike(Protocol):
     name: str
@@ -48,6 +55,67 @@ def resolve_system(system_choice: str, staged_paths: list[Path]) -> str:
 def infer_tdt_ear_from_upload_names(uploaded_files: list[UploadedFileLike]) -> str | None:
     pseudo_paths = [Path(uploaded.name) for uploaded in uploaded_files]
     return infer_tdt_ear_from_filenames(pseudo_paths)
+
+
+def default_viewer_source_index(*, has_last_ingested_session: bool) -> int:
+    if has_last_ingested_session:
+        return VIEWER_SOURCE_OPTIONS.index("Last ingested session")
+    return VIEWER_SOURCE_OPTIONS.index("DuckDB filters (no SQL)")
+
+
+def discover_duckdb_paths(
+    search_roots: list[str | Path],
+    *,
+    fallback: str | Path | None = None,
+) -> list[str]:
+    paths: dict[str, Path] = {}
+    for root_value in search_roots:
+        root = Path(root_value).expanduser()
+        if root.is_file() and root.suffix.lower() == ".duckdb":
+            if not _is_backup_duckdb(root):
+                paths[str(root)] = root
+            continue
+        if not root.exists() or not root.is_dir():
+            continue
+        for path in root.rglob("*.duckdb"):
+            if path.is_file() and not _is_backup_duckdb(path):
+                paths[str(path)] = path
+
+    if fallback is not None:
+        fallback_path = Path(fallback).expanduser()
+        if (
+            fallback_path.exists()
+            and fallback_path.suffix.lower() == ".duckdb"
+            and not _is_backup_duckdb(fallback_path)
+        ):
+            paths[str(fallback_path)] = fallback_path
+
+    return sorted(paths, key=lambda value: value.lower())
+
+
+def _is_backup_duckdb(path: Path) -> bool:
+    return any(part.lower() in {"backup", "backups"} for part in path.parts)
+
+
+def parse_day_filter(value: str) -> int | None:
+    text = value.strip().lower()
+    if not text:
+        return None
+    if text.startswith("d"):
+        text = text[1:].strip()
+    if not text:
+        raise ValueError("day must be a number, optionally prefixed with 'd'.")
+    try:
+        return int(text)
+    except ValueError as exc:
+        raise ValueError("day must be a number, optionally prefixed with 'd'.") from exc
+
+
+def format_frequency_label(value: float | int | str) -> str:
+    freq = float(value)
+    if abs(freq) < 1e-9:
+        return "Click"
+    return f"{freq:g} Hz"
 
 
 def combine_sessions(

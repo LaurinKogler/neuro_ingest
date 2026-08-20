@@ -68,9 +68,14 @@ if (-not $pythonExe) {
 }
 
 $cmd = @(
-    "-m", "streamlit", "run", "scripts/ingest_ui.py",
+    "-m", "streamlit", "run", "app/streamlit_app.py",
     "--browser.gatherUsageStats", "false",
-    "--server.address", "localhost"
+    "--server.address", "localhost",
+    "--theme.base", "light",
+    "--theme.primaryColor", "#ef4444",
+    "--theme.backgroundColor", "#f3f6fa",
+    "--theme.secondaryBackgroundColor", "#ffffff",
+    "--theme.textColor", "#111827"
 )
 if ($ExtraArgs.Count -gt 0) {
     $cmd += $ExtraArgs

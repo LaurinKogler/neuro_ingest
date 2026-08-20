@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,8 +17,32 @@ dependencies = [
     "streamlit>=1.38",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "black>=24.0",
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+cache_dir = "test_runtime/pytest-cache"
+addopts = "--basetemp=test_runtime/pytest-temp -p no:cacheprovider"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

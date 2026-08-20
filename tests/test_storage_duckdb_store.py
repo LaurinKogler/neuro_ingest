@@ -9,19 +9,24 @@ from neuro_ingest.ingest.tdt import TDTIngestor
 from neuro_ingest.storage.duckdb_store import DuckDBStore
 
 
-def _build_session(session_id: str = "AC04_20251017") -> SessionData:
+def _build_session(
+    session_id: str = "AC04_20251017",
+    *,
+    animal_id: str = "AC04",
+    day: int = 0,
+) -> SessionData:
     rows = TDTIngestor().ingest(
         paths=[Path("tests/data/AC04_ClickABR_right_20251017.txt")],
-        animal_id="AC04",
+        animal_id=animal_id,
         session_date=date(2025, 10, 17),
         paradigm="abr",
-        day=0,
+        day=day,
         session_id=session_id,
     )
     return SessionData(
         session_id=session_id,
         system="TDT",
-        animal_id="AC04",
+        animal_id=animal_id,
         session_date=date(2025, 10, 17),
         paradigm="abr",
         rows=rows,
@@ -39,6 +44,28 @@ def test_duckdb_store_append_and_query(tmp_path: Path):
 
     row_count = store.query("SELECT COUNT(*) AS n FROM samples")
     assert int(row_count.iloc[0]["n"]) == len(session.rows)
+
+
+def test_duckdb_store_lists_empty_filter_values_without_samples_table(tmp_path: Path):
+    store = DuckDBStore(db_path=tmp_path / "empty.duckdb")
+
+    assert store.list_sample_filter_values() == {"animal_ids": [], "days": []}
+
+
+def test_duckdb_store_lists_filter_values_and_filters_days_by_animal(tmp_path: Path):
+    store = DuckDBStore(db_path=tmp_path / "sessions.duckdb")
+    store.append_session(_build_session("AC04_d3_20251017", animal_id="AC04", day=3))
+    store.append_session(_build_session("AC04_d14_20251017", animal_id="AC04", day=14))
+    store.append_session(_build_session("X48_d7_20251017", animal_id="X48", day=7))
+
+    values = store.list_sample_filter_values()
+    ac04_values = store.list_sample_filter_values(animal_id="AC04")
+    x48_values = store.list_sample_filter_values(animal_id="X48")
+
+    assert values["animal_ids"] == ["AC04", "X48"]
+    assert values["days"] == [3, 7, 14]
+    assert ac04_values["days"] == [3, 14]
+    assert x48_values["days"] == [7]
 
 
 def test_duckdb_store_conflict_raises(tmp_path: Path):

@@ -25,6 +25,12 @@ def test_plot_service_builds_figure():
     assert isinstance(fig, go.Figure)
     assert len(fig.data) > 0
     assert fig.layout.xaxis.fixedrange is True
+    assert fig.layout.title.font.color == "#111827"
+    assert fig.layout.xaxis.title.font.color == "#111827"
+    assert fig.layout.yaxis.title.font.color == "#111827"
+    assert fig.layout.xaxis.tickfont.color == "#1f2937"
+    assert fig.layout.yaxis.tickfont.color == "#1f2937"
+    assert fig.layout.legend.font.color == "#1f2937"
 
 
 def test_plot_service_filters_rows():

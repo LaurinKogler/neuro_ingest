@@ -44,11 +44,40 @@ class NeuroAudioToolbox:
             tdt_ear=tdt_ear,
         )
 
+    def ingest_files(
+        self,
+        *,
+        system: str,
+        files: list[str | Path],
+        animal_id: str,
+        session_date: date,
+        paradigm: str = "abr",
+        day: int | None = None,
+        session_id: str | None = None,
+        tdt_ear: Literal["left", "right"] | None = None,
+    ) -> SessionData:
+        return self.ingest_service.ingest_files(
+            system=system,
+            files=files,
+            animal_id=animal_id,
+            session_date=session_date,
+            paradigm=paradigm,
+            day=day,
+            session_id=session_id,
+            tdt_ear=tdt_ear,
+        )
+
     def save(self, session: SessionData, *, overwrite: bool = False) -> StorageWriteResult:
         return self.storage_service.append_session(session, overwrite=overwrite)
 
+    def session_exists(self, session_id: str) -> bool:
+        return self.storage_service.session_exists(session_id)
+
     def query(self, sql: str, params: dict | list | tuple | None = None) -> pd.DataFrame:
         return self.storage_service.query(sql, params=params)
+
+    def list_sample_filter_values(self, *, animal_id: str | None = None) -> dict[str, list]:
+        return self.storage_service.list_sample_filter_values(animal_id=animal_id)
 
     def get_samples(
         self,

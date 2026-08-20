@@ -7,10 +7,11 @@ import warnings
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.colors import qualitative
+from plotly.colors import sample_colorscale, sequential
 from plotly.subplots import make_subplots
 
 from neuro_ingest.data.models import SessionData
+from neuro_ingest.plot.style import apply_plot_style
 
 
 RelationMode = Literal["ipsi", "ipsi_contra"]
@@ -96,7 +97,7 @@ class PlotService:
                 )
             fig.update_layout(
                 template="plotly_white",
-                title=f"{title} | {selected_freq:g} Hz | ipsi",
+                title=f"{title} | {self._frequency_label(selected_freq)} | ipsi",
                 xaxis_title="Time (ms)",
                 yaxis_title="Amplitude (uV)",
                 legend_title="Intensity (dB)",
@@ -109,6 +110,8 @@ class PlotService:
             )
             self._reorder_traces_for_legend(fig)
             fig.update_xaxes(fixedrange=True)
+            self._apply_level_y_axis_ticks(fig=fig, rows=plot_rows, group_by=group_by, offsets=offsets)
+            apply_plot_style(fig)
             return fig
 
         fig = make_subplots(rows=1, cols=2, subplot_titles=("ipsi", "contra"), shared_yaxes=True)
@@ -144,7 +147,7 @@ class PlotService:
         )
         fig.update_layout(
             template="plotly_white",
-            title=f"{title} | {selected_freq:g} Hz | ipsi vs contra",
+            title=f"{title} | {self._frequency_label(selected_freq)} | ipsi vs contra",
             legend_title="Intensity (dB)",
             hovermode="closest",
             uirevision="abr-clinical",
@@ -160,6 +163,8 @@ class PlotService:
         fig.update_xaxes(title_text="Time (ms)", fixedrange=True, row=1, col=2)
         fig.update_yaxes(title_text="Amplitude (uV)", row=1, col=1)
         self._reorder_traces_for_legend(fig)
+        self._apply_level_y_axis_ticks(fig=fig, rows=freq_rows, group_by=group_by, offsets=offsets, row=1, col=1)
+        apply_plot_style(fig)
         return fig
 
     @staticmethod
@@ -205,12 +210,34 @@ class PlotService:
         raise ValueError(f"frequency_hz={frequency_hz} not found in dataset frequencies: {unique_freqs}")
 
     @staticmethod
+    def _frequency_label(value: float) -> str:
+        if abs(float(value)) < 1e-9:
+            return "Click"
+        return f"{float(value):g} Hz"
+
+    @staticmethod
     def _build_color_map(rows: pd.DataFrame, *, color_by: str) -> dict[Any, str]:
         if color_by not in rows.columns:
             return {}
-        palette = qualitative.Safe + qualitative.Dark24
         keys = list(pd.Series(rows[color_by]).dropna().unique())
+        palette = PlotService._build_plasma_palette(len(keys))
         return {key: palette[idx % len(palette)] for idx, key in enumerate(keys)}
+
+    @staticmethod
+    def _build_plasma_palette(size: int) -> list[str]:
+        if size <= 0:
+            return []
+        if size == 1:
+            return sample_colorscale(sequential.Plasma, [0.68])
+
+        positions = np.linspace(0.06, 0.92, size)
+        palette = sample_colorscale(sequential.Plasma, positions)
+        return [palette[idx] for idx in PlotService._low_discrepancy_order(size)]
+
+    @staticmethod
+    def _low_discrepancy_order(size: int) -> list[int]:
+        golden_ratio_conjugate = 0.6180339887498949
+        return sorted(range(size), key=lambda idx: (idx * golden_ratio_conjugate) % 1.0)
 
     @staticmethod
     def _build_offsets(
@@ -244,6 +271,40 @@ class PlotService:
         by_trace = rows.groupby(group_by, sort=False)["level_db"].first()
         levels = sorted(by_trace.astype(float).unique(), reverse=(intensity_order == "desc"))
         return {float(level): idx for idx, level in enumerate(levels)}
+
+    @staticmethod
+    def _apply_level_y_axis_ticks(
+        *,
+        fig: go.Figure,
+        rows: pd.DataFrame,
+        group_by: str,
+        offsets: dict[Any, float],
+        row: int | None = None,
+        col: int | None = None,
+    ) -> None:
+        if not offsets or rows.empty:
+            return
+
+        level_ticks: dict[float, float] = {}
+        by_trace = rows.groupby(group_by, sort=False)["level_db"].first()
+        for trace_id, level in by_trace.items():
+            if trace_id in offsets:
+                level_ticks[float(level)] = float(offsets[trace_id])
+
+        if not level_ticks:
+            return
+
+        tick_items = sorted(level_ticks.items(), key=lambda item: item[1])
+        axis_options = {
+            "title_text": "Intensity (dB)",
+            "tickmode": "array",
+            "tickvals": [offset for _, offset in tick_items],
+            "ticktext": [f"{level:g} dB" for level, _ in tick_items],
+        }
+        if row is None or col is None:
+            fig.update_yaxes(**axis_options)
+        else:
+            fig.update_yaxes(**axis_options, row=row, col=col)
 
     def _add_traces(
         self,
@@ -293,9 +354,10 @@ class PlotService:
                 legendrank=legend_ranks.get(float(level), len(legend_ranks) + 1),
                 showlegend=showlegend,
                 line={"color": line_color, "width": 1.4},
+                customdata=chunk["amplitude_uv"],
                 hovertemplate=(
                     "time_ms=%{x:.3f}<br>"
-                    "amplitude_uv=%{y:.3f}<br>"
+                    "amplitude_uv=%{customdata:.3f}<br>"
                     f"trace={trace_id}<br>"
                     f"level_db={level:g}<extra></extra>"
                 ),

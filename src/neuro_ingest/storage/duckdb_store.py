@@ -81,6 +81,17 @@ class DuckDBStore:
                 except Exception:
                     pass
 
+    def session_exists(self, session_id: str) -> bool:
+        with duckdb.connect(str(self.db_path)) as conn:
+            if not self._table_exists(conn, "sessions"):
+                return False
+            return bool(
+                conn.execute(
+                    "SELECT COUNT(*) FROM sessions WHERE session_id = ?",
+                    [session_id],
+                ).fetchone()[0]
+            )
+
     @staticmethod
     def _coerce_dataframe_for_duckdb(rows: pd.DataFrame) -> pd.DataFrame:
         out = rows.copy()
@@ -95,6 +106,39 @@ class DuckDBStore:
             if params is None:
                 return conn.execute(sql).fetchdf()
             return conn.execute(sql, params).fetchdf()
+
+    def list_sample_filter_values(self, *, animal_id: str | None = None) -> dict[str, list]:
+        with duckdb.connect(str(self.db_path)) as conn:
+            if not self._table_exists(conn, "samples"):
+                return {"animal_ids": [], "days": []}
+
+            animal_rows = conn.execute(
+                """
+                SELECT DISTINCT animal_id
+                FROM samples
+                WHERE animal_id IS NOT NULL AND animal_id <> ''
+                ORDER BY animal_id
+                """
+            ).fetchall()
+            animal_ids = [str(row[0]) for row in animal_rows]
+
+            day_filters = ["day IS NOT NULL"]
+            values: list[Any] = []
+            if animal_id is not None and animal_id.strip():
+                day_filters.append("animal_id = ?")
+                values.append(animal_id.strip())
+
+            day_rows = conn.execute(
+                f"""
+                SELECT DISTINCT day
+                FROM samples
+                WHERE {" AND ".join(day_filters)}
+                ORDER BY day
+                """,
+                values,
+            ).fetchall()
+            days = [int(row[0]) for row in day_rows]
+            return {"animal_ids": animal_ids, "days": days}
 
     def list_sessions(
         self,
@@ -135,6 +179,19 @@ class DuckDBStore:
             if values:
                 return conn.execute(sql, values).fetchdf()
             return conn.execute(sql).fetchdf()
+
+    @staticmethod
+    def _table_exists(conn: duckdb.DuckDBPyConnection, table_name: str) -> bool:
+        return bool(
+            conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = 'main' AND table_name = ?
+                """,
+                [table_name],
+            ).fetchone()[0]
+        )
 
     @staticmethod
     def _ensure_sessions_table(conn: duckdb.DuckDBPyConnection) -> None:

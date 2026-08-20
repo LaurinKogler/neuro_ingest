@@ -58,6 +58,14 @@ def test_ipsi_contra_mode_falls_back_when_contra_missing():
     assert "xaxis2" not in layout
 
 
+def test_plot_title_labels_zero_frequency_as_click():
+    rows = _tdt_rows()
+    fig = PlotService().plot_abr(rows, frequency_hz=0.0)
+
+    assert "Click" in str(fig.layout.title.text)
+    assert "0 Hz" not in str(fig.layout.title.text)
+
+
 def test_spacing_adds_deterministic_intensity_offsets():
     rows = pd.DataFrame(
         [
@@ -121,6 +129,51 @@ def test_legend_order_follows_intensity_order():
     fig_asc = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="asc")
     asc_legend_names = [trace.name for trace in fig_asc.data if trace.showlegend]
     assert asc_legend_names == ["70 dB", "90 dB"]
+
+
+def test_trace_colors_use_stable_shuffled_plasma_palette():
+    rows = pd.DataFrame(
+        [
+            {"trace_uid": "t30", "freq_hz": 4000.0, "level_db": 30.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t30", "freq_hz": 4000.0, "level_db": 30.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 1.5},
+            {"trace_uid": "t50", "freq_hz": 4000.0, "level_db": 50.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t50", "freq_hz": 4000.0, "level_db": 50.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 1.5},
+            {"trace_uid": "t70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 1.5},
+            {"trace_uid": "t90", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 1.0},
+            {"trace_uid": "t90", "freq_hz": 4000.0, "level_db": 90.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 1.5},
+        ]
+    )
+
+    fig1 = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="asc")
+    fig2 = PlotService().plot_abr(rows, frequency_hz=4000.0, intensity_order="asc")
+    colors1 = [trace.line.color for trace in fig1.data]
+    colors2 = [trace.line.color for trace in fig2.data]
+
+    assert colors1 == colors2
+    assert len(set(colors1)) == 4
+    assert all(str(color).startswith("rgb(") for color in colors1)
+    assert "#1f77b4" not in colors1
+
+
+def test_stacked_trace_axis_labels_show_intensity_levels():
+    rows = pd.DataFrame(
+        [
+            {"trace_uid": "t30", "freq_hz": 4000.0, "level_db": 30.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 0.2},
+            {"trace_uid": "t30", "freq_hz": 4000.0, "level_db": 30.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 0.1},
+            {"trace_uid": "t50", "freq_hz": 4000.0, "level_db": 50.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 0.2},
+            {"trace_uid": "t50", "freq_hz": 4000.0, "level_db": 50.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 0.1},
+            {"trace_uid": "t70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 0, "time_ms": 0.0, "amplitude_uv": 0.2},
+            {"trace_uid": "t70", "freq_hz": 4000.0, "level_db": 70.0, "rel_ear": "ipsi", "sample_idx": 1, "time_ms": 0.5, "amplitude_uv": 0.1},
+        ]
+    )
+
+    fig = PlotService().plot_abr(rows, frequency_hz=4000.0, spacing_uv=2.0, intensity_order="desc")
+
+    assert fig.layout.yaxis.title.text == "Intensity (dB)"
+    assert tuple(fig.layout.yaxis.ticktext) == ("30 dB", "50 dB", "70 dB")
+    assert tuple(fig.layout.yaxis.tickvals) == (0.0, 2.0, 4.0)
+    assert "%{customdata:.3f}" in fig.data[0].hovertemplate
 
 
 def test_legend_order_stays_sorted_when_levels_first_appear_in_contra_panel():

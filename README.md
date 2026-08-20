@@ -1,10 +1,13 @@
 # neuro_ingest
 
-`neuro_ingest` is now a modular neuro-audio toolbox for:
+`neuro_ingest` is a modular neuro-audio workbench for:
 - ingestion and normalization of vendor exports
 - local persistence (Parquet + DuckDB)
 - interactive ABR plotting in Jupyter
 - drag-and-drop ingestion UI for local use
+
+The guiding idea is simple: raw vendor files are read only, while normalized
+sample tables, DuckDB indexes, edits, and backups are written separately.
 
 Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
@@ -15,6 +18,7 @@ Full guide: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 - `neuro_ingest.storage`: Parquet and DuckDB stores + storage service
 - `neuro_ingest.plot`: interactive ABR plotting service
 - `neuro_ingest.toolbox`: single facade for notebook workflows
+- `app/streamlit_app.py`: primary Streamlit app entrypoint
 - `scripts/ingest_ui.py`: Streamlit drag-and-drop ingest app
 
 ## Quick Workflow
@@ -88,11 +92,15 @@ Start the local ingest UI:
 scripts/run_ingest_ui.ps1
 ```
 
+The launcher runs `app/streamlit_app.py`, which delegates to the maintained
+Streamlit implementation in `scripts/ingest_ui.py`.
+
 Then open the local Streamlit URL shown in the terminal, drag files in, fill metadata, and press **Ingest**.
 System is explicit in UI (`TDT` or `IHS`); no system auto-detection is used.
 For TDT uploads, use separate left/right upload fields; each side is ingested as its own batch.
 Machine-specific UI defaults live in `scripts/ingest_ui.local.toml`.
 Use `scripts/ingest_ui.local.example.toml` as the template; the `.local.toml` file is git-ignored so local paths and naming defaults are not overwritten by pulls.
+Workbench defaults such as trace spacing, amplitude scale, relation mode, row limits, and editor backup behavior can be saved from the in-app **Settings** panel. Those personal defaults are stored at `data/processed/settings/user_settings.json`, which is also ignored by Git.
 After ingest, use ABR viewer controls for:
 - viewer data source selection:
   - last ingested session
@@ -219,6 +227,12 @@ Step 7. Install this project.
 pip install .
 ```
 
+For development work, include the optional test/format/lint tools:
+
+```powershell
+pip install ".[dev]"
+```
+
 What Step 7 does:
 - installs the `neuro_ingest` package from the repo folder on your PC
 - downloads the Python dependencies listed in `pyproject.toml` from PyPI
@@ -325,4 +339,24 @@ If your existing environment already has NumPy 2.x and crashes on import on Wind
 
 ```powershell
 pip install "numpy<2"
+```
+
+## Common Commands
+
+Run tests:
+
+```powershell
+scripts/run_tests.ps1
+```
+
+Run linting:
+
+```powershell
+ruff check .
+```
+
+Check formatting:
+
+```powershell
+black --check .
 ```

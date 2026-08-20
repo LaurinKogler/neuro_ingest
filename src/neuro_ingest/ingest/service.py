@@ -30,16 +30,44 @@ class IngestService:
         require_tdt_ear_confirmation: bool = True,
     ) -> SessionData:
         input_path = Path(input_path)
+        files = self._resolve_candidate_files(input_path=input_path, pattern=pattern)
+        return self.ingest_files(
+            system=system,
+            files=files,
+            animal_id=animal_id,
+            session_date=session_date,
+            paradigm=paradigm,
+            day=day,
+            session_id=session_id,
+            tdt_ear=tdt_ear,
+            infer_tdt_ear=infer_tdt_ear,
+            require_tdt_ear_confirmation=require_tdt_ear_confirmation,
+        )
+
+    def ingest_files(
+        self,
+        *,
+        system: str,
+        files: Iterable[str | Path],
+        animal_id: str,
+        session_date: date,
+        paradigm: str = "abr",
+        day: int | None = None,
+        session_id: str | None = None,
+        tdt_ear: Literal["left", "right"] | None = None,
+        infer_tdt_ear: bool = True,
+        require_tdt_ear_confirmation: bool = True,
+    ) -> SessionData:
+        files = sorted(Path(path) for path in files)
         if session_id is None:
             session_id = f"{animal_id}_{session_date:%Y%m%d}"
 
         ingestor = self._resolve_ingestor(system)
-        files = self._resolve_candidate_files(input_path=input_path, pattern=pattern)
         compatible_files = [path for path in files if ingestor.can_parse(path)]
 
         if not compatible_files:
             raise FileNotFoundError(
-                f"No {ingestor.system}-compatible files matching {pattern} in {input_path}"
+                f"No {ingestor.system}-compatible files in provided file list."
             )
 
         resolved_tdt_ear = self._resolve_tdt_ear(
